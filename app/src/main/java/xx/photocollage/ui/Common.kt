@@ -34,7 +34,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -225,9 +224,10 @@ fun DialogConfirmButton(text: String, danger: Boolean = false, enabled: Boolean 
     }
 }
 
+/** A dialog's way out — Cancel and the like — filled with the accent like the main button, not a pale wash of it. */
 @Composable
 fun DialogDismissButton(text: String, onClick: () -> Unit) {
-    FilledTonalButton(onClick = onClick, contentPadding = DIALOG_BUTTON_PADDING) {
+    Button(onClick = onClick, contentPadding = DIALOG_BUTTON_PADDING) {
         Text(text, maxLines = 1)
     }
 }
