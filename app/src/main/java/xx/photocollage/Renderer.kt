@@ -28,8 +28,11 @@ fun drawCollage(
     onDrawn: (Bitmap) -> Unit = {},
     bitmapOf: (Photo) -> Bitmap?,
 ) {
-    canvas.drawColor(collage.background)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    // A rectangle, not drawColor: on screen the canvas is the whole window's,
+    // and drawColor would paint over everything drawn on it before.
+    paint.color = collage.background
+    canvas.drawRect(0f, 0f, width, height, paint)
     val path = Path()
     val matrix = Matrix()
     collage.leaves.forEachIndexed { index, leaf ->
