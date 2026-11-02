@@ -23,6 +23,9 @@ save or share.**
   Instagram, Stories, HD, Full HD, 2K, 4K, a 10×15 print, A4.
 - **Look**: the gap's width, rounded corners, and the background colour.
 - **Undo and redo** for every step.
+- **Turning**: the collage turns with the phone by the sensor even with
+  auto-rotate off, while the editor stays upright — or as the system says, or
+  never (Settings).
 - **Out**: save as a JPEG named by the moment it was saved, into
   `Pictures/PhotoCollage` or a folder picked in Settings; or share it.
 - **Draft**: save the collage by hand and open it again later; the app keeps

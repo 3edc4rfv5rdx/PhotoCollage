@@ -11,6 +11,10 @@
     <string name="setting_accent">Color</string>
     <string name="setting_language">Language</string>
     <string name="setting_update_check">Check for updates at launch</string>
+    <string name="setting_canvas_rotation">Turn the collage</string>
+    <string name="rotation_sensor">By sensor</string>
+    <string name="rotation_system">Like the system</string>
+    <string name="rotation_never">Never</string>
     <string name="setting_save_folder">Save folder</string>
     <string name="choose_folder">Choose folder</string>
     <string name="theme_system">System</string>

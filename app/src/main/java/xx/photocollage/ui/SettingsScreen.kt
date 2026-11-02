@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.updater.Updater
 import xx.photocollage.AppSettings
+import xx.photocollage.CanvasRotation
 import xx.photocollage.DEFAULT_FOLDER_LABEL
 import xx.photocollage.R
 import xx.photocollage.ThemeMode
@@ -41,12 +42,12 @@ import xx.photocollage.setLanguageTag
 import xx.photocollage.supportedLanguages
 
 /** Which editor is open; only one can be at a time. */
-private enum class Editing { NONE, THEME, ACCENT, LANGUAGE, SAVE_FOLDER }
+private enum class Editing { NONE, THEME, ACCENT, LANGUAGE, ROTATION, SAVE_FOLDER }
 
 /** The lines of the save-folder dialog: the default folder, the one picked before if any, and a new pick. */
 private enum class FolderOption { DEFAULT, CURRENT, PICK }
 
-/** Theme, accent colour, language, the start-up update check, and the folder a collage is saved into. */
+/** Theme, accent colour, language, the start-up update check, when the collage turns, and the folder it is saved into. */
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -54,6 +55,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     val themeMode by AppSettings.themeMode.collectAsState()
     val accentIndex by AppSettings.accentIndex.collectAsState()
     val saveFolder by AppSettings.saveFolder.collectAsState()
+    val canvasRotation by AppSettings.canvasRotation.collectAsState()
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         // A grant that cannot be kept is no folder to save into later: the setting stays as it was.
         uri?.let { runCatching { AppSettings.setSaveFolder(context, it) } }
@@ -106,6 +108,12 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         }
         HorizontalDivider()
         SettingRow(
+            label = stringResource(R.string.setting_canvas_rotation),
+            value = stringResource(canvasRotation.labelRes()),
+            onClick = { editing = Editing.ROTATION },
+        )
+        HorizontalDivider()
+        SettingRow(
             label = stringResource(R.string.setting_save_folder),
             value = folderLabel(saveFolder),
             onClick = { editing = Editing.SAVE_FOLDER },
@@ -151,6 +159,18 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 editing = Editing.NONE
                 // Persisted, and the activity recreated in the new language.
                 activity?.let { a -> setLanguageTag(a, it.tag) }
+            },
+        )
+
+        Editing.ROTATION -> ChoiceDialog(
+            title = stringResource(R.string.setting_canvas_rotation),
+            options = CanvasRotation.entries,
+            selected = canvasRotation,
+            label = { stringResource(it.labelRes()) },
+            onDismiss = { editing = Editing.NONE },
+            onPick = {
+                AppSettings.setCanvasRotation(context, it)
+                editing = Editing.NONE
             },
         )
 
@@ -205,6 +225,12 @@ private fun SettingRow(label: String, value: String, onClick: () -> Unit) {
         Text(label, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
     }
+}
+
+private fun CanvasRotation.labelRes(): Int = when (this) {
+    CanvasRotation.SENSOR -> R.string.rotation_sensor
+    CanvasRotation.SYSTEM -> R.string.rotation_system
+    CanvasRotation.NEVER -> R.string.rotation_never
 }
 
 private fun ThemeMode.labelRes(): Int = when (this) {

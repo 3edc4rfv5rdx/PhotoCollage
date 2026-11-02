@@ -101,6 +101,7 @@ private enum class PickMode { NEW, REPLACE }
 private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: () -> Unit, onAbout: () -> Unit) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
+    val rotation = rememberCanvasRotation()
     var adjust by rememberSaveable { mutableStateOf(Adjust.NONE) }
     var dialog by rememberSaveable { mutableStateOf(Dialog.NONE) }
     // The cell a picker was opened for; saveable, since the picker can outlive the activity.
@@ -140,7 +141,8 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                 onSettings = onSettings,
                 onAbout = onAbout,
             )
-            Box(Modifier.weight(1f).fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
+            // Only the collage turns with the phone; the bars and dialogs stay upright.
+            RotatedFrame(rotation, Modifier.weight(1f).fillMaxWidth().padding(12.dp)) {
                 CollageCanvas(
                     state = state,
                     previews = vm.previews,

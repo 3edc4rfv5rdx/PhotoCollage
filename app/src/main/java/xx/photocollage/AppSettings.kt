@@ -24,6 +24,12 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 const val ACCENT_COUNT = 6
 
 /**
+ * When the collage turns with the phone: by the sensor whatever the system
+ * says, only while the system's auto-rotate is on, or not at all.
+ */
+enum class CanvasRotation { SENSOR, SYSTEM, NEVER }
+
+/**
  * Process-wide settings, backed by SharedPreferences and exposed as [StateFlow]
  * for Compose. Call [load] once before the UI reads them.
  */
@@ -33,6 +39,7 @@ object AppSettings {
     private const val KEY_ACCENT = "accent_index"
     private const val KEY_LANGUAGE = "language"
     private const val KEY_SAVE_FOLDER = "save_folder"
+    private const val KEY_CANVAS_ROTATION = "canvas_rotation"
 
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
@@ -44,11 +51,16 @@ object AppSettings {
     private val _saveFolder = MutableStateFlow<Uri?>(null)
     val saveFolder: StateFlow<Uri?> = _saveFolder.asStateFlow()
 
+    /** When the collage turns with the phone; the rest of the editor never does. */
+    private val _canvasRotation = MutableStateFlow(CanvasRotation.SENSOR)
+    val canvasRotation: StateFlow<CanvasRotation> = _canvasRotation.asStateFlow()
+
     fun load(context: Context) {
         val prefs = prefs(context)
         _themeMode.value = enumOr(prefs.getString(KEY_THEME, null), ThemeMode.SYSTEM)
         _accentIndex.value = prefs.getInt(KEY_ACCENT, 0).coerceIn(0, ACCENT_COUNT - 1)
         _saveFolder.value = prefs.getString(KEY_SAVE_FOLDER, null)?.toUri()
+        _canvasRotation.value = enumOr(prefs.getString(KEY_CANVAS_ROTATION, null), CanvasRotation.SENSOR)
     }
 
     fun setThemeMode(context: Context, mode: ThemeMode) {
@@ -60,6 +72,11 @@ object AppSettings {
         val clamped = index.coerceIn(0, ACCENT_COUNT - 1)
         _accentIndex.value = clamped
         prefs(context).edit { putInt(KEY_ACCENT, clamped) }
+    }
+
+    fun setCanvasRotation(context: Context, rotation: CanvasRotation) {
+        _canvasRotation.value = rotation
+        prefs(context).edit { putString(KEY_CANVAS_ROTATION, rotation.name) }
     }
 
     /**
