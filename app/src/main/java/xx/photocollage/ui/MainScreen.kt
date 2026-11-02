@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.RotateRight
@@ -318,20 +319,8 @@ private fun SwapBar(onCancel: () -> Unit) {
 private fun AdjustRow(adjust: Adjust, state: EditorState, vm: CollageViewModel) {
     val collage = state.collage
     when (adjust) {
-        Adjust.GAP -> Slider(
-            value = collage.gap,
-            onValueChange = vm::setGap,
-            onValueChangeFinished = vm::endGesture,
-            valueRange = 0f..MAX_GAP,
-            modifier = Modifier.padding(horizontal = 24.dp),
-        )
-        Adjust.CORNER -> Slider(
-            value = collage.corner,
-            onValueChange = vm::setCorner,
-            onValueChangeFinished = vm::endGesture,
-            valueRange = 0f..MAX_CORNER,
-            modifier = Modifier.padding(horizontal = 24.dp),
-        )
+        Adjust.GAP -> AdjustSlider(collage.gap, 0f..MAX_GAP, vm::setGap, vm::endGesture)
+        Adjust.CORNER -> AdjustSlider(collage.corner, 0f..MAX_CORNER, vm::setCorner, vm::endGesture)
         Adjust.BACKGROUND -> Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -342,6 +331,27 @@ private fun AdjustRow(adjust: Adjust, state: EditorState, vm: CollageViewModel) 
         }
         Adjust.NONE -> Unit
     }
+}
+
+/**
+ * A slider across the screen for one of the collage's settings. The system's
+ * back swipe is kept off its whole width: at zero its thumb sits by the left
+ * edge, where a drag would otherwise close the app.
+ */
+@Composable
+private fun AdjustSlider(
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    onChange: (Float) -> Unit,
+    onDone: () -> Unit,
+) {
+    Slider(
+        value = value,
+        onValueChange = onChange,
+        onValueChangeFinished = onDone,
+        valueRange = range,
+        modifier = Modifier.systemGestureExclusion().padding(horizontal = 24.dp),
+    )
 }
 
 @Composable
