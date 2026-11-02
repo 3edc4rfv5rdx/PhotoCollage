@@ -92,7 +92,7 @@ fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
 private enum class Adjust { NONE, GAP, CORNER, BACKGROUND }
 
 /** Which dialog is up. */
-private enum class Dialog { NONE, LAYOUT, FORMAT }
+private enum class Dialog { NONE, LAYOUT, FORMAT, SAVE }
 
 /** Where picked photos go: [NEW] into empty cells, [REPLACE] in place of the photo in a cell. */
 private enum class PickMode { NEW, REPLACE }
@@ -138,6 +138,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                 vm,
                 onExit = onExit,
                 onNew = { pick(0, PickMode.NEW) },
+                onSave = { dialog = Dialog.SAVE },
                 onSettings = onSettings,
                 onAbout = onAbout,
             )
@@ -194,6 +195,10 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
             onPreset = vm::setPreset,
             onDismiss = { dialog = Dialog.NONE },
         )
+        Dialog.SAVE -> SaveDialog(onDismiss = { dialog = Dialog.NONE }) {
+            dialog = Dialog.NONE
+            vm.saveImage(it)
+        }
         Dialog.NONE -> Unit
     }
 }
@@ -206,6 +211,7 @@ private fun TopBar(
     vm: CollageViewModel,
     onExit: () -> Unit,
     onNew: () -> Unit,
+    onSave: () -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit,
 ) {
@@ -226,7 +232,7 @@ private fun TopBar(
                 }
                 AppMenuItem(stringResource(R.string.save_image), enabled = hasPhotos) {
                     menu = false
-                    vm.saveImage()
+                    onSave()
                 }
                 AppMenuItem(stringResource(R.string.share), enabled = hasPhotos) {
                     menu = false

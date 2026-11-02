@@ -26,8 +26,9 @@ save or share.**
 - **Turning**: the collage turns with the phone by the sensor even with
   auto-rotate off, while the editor stays upright — or as the system says, or
   never (Settings).
-- **Out**: save as a JPEG named by the moment it was saved, into
-  `Pictures/PhotoCollage` or a folder picked in Settings; or share it.
+- **Out**: save as a JPEG under a name of your own — the moment, unless
+  changed — into `Pictures/PhotoCollage` or a folder picked in Settings; or
+  share it.
 - **Draft**: save the collage by hand and open it again later; the app keeps
   its own copy of every photo in it.
 - English, Russian and Ukrainian; light and dark themes with accent colours.

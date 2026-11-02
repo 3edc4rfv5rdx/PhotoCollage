@@ -63,8 +63,8 @@ fun renderCollage(context: Context, collage: Collage): Bitmap? {
  * Settings, by its tree URI — or into Pictures/PhotoCollage when null.
  * Whether it was written.
  */
-fun saveImage(context: Context, bitmap: Bitmap, folder: Uri?): Boolean =
-    if (folder == null) saveToPictures(context, bitmap) else saveToFolder(context, bitmap, folder)
+fun saveImage(context: Context, bitmap: Bitmap, folder: Uri?, fileName: String): Boolean =
+    if (folder == null) saveToPictures(context, bitmap, fileName) else saveToFolder(context, bitmap, folder, fileName)
 
 /** The folder [saveImage] writes into, as the user knows it: the path within its storage. */
 fun folderLabel(folder: Uri?): String {
@@ -75,10 +75,10 @@ fun folderLabel(folder: Uri?): String {
 }
 
 /** Through MediaStore, which needs no permission for its own Pictures/ folder. */
-private fun saveToPictures(context: Context, bitmap: Bitmap): Boolean {
+private fun saveToPictures(context: Context, bitmap: Bitmap, fileName: String): Boolean {
     val resolver = context.contentResolver
     val values = ContentValues().apply {
-        put(MediaStore.Images.Media.DISPLAY_NAME, "${exportName()}.jpg")
+        put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
         put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
         put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/$ALBUM")
         // Hidden from other apps until it is written whole.
@@ -100,11 +100,11 @@ private fun saveToPictures(context: Context, bitmap: Bitmap): Boolean {
  * when the grant is gone or the folder is: the file is not made elsewhere
  * behind their back.
  */
-private fun saveToFolder(context: Context, bitmap: Bitmap, tree: Uri): Boolean {
+private fun saveToFolder(context: Context, bitmap: Bitmap, tree: Uri, fileName: String): Boolean {
     val resolver = context.contentResolver
     val doc = try {
         val parent = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
-        DocumentsContract.createDocument(resolver, parent, "image/jpeg", "${exportName()}.jpg")
+        DocumentsContract.createDocument(resolver, parent, "image/jpeg", fileName)
     } catch (e: Exception) {
         null
     } ?: return false
@@ -130,7 +130,7 @@ private fun writeJpeg(context: Context, bitmap: Bitmap, uri: Uri) {
  */
 fun writeForSharing(context: Context, bitmap: Bitmap): File? = try {
     val dir = File(context.cacheDir, "shared").apply { mkdirs() }
-    File(dir, "${exportName()}.jpg").also { file ->
+    File(dir, "${defaultImageName()}.jpg").also { file ->
         dir.listFiles()?.forEach { it.delete() }
         file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)) }
     }
@@ -138,6 +138,21 @@ fun writeForSharing(context: Context, bitmap: Bitmap): File? = try {
     null
 }
 
-/** A saved collage's name: the app's and the moment, so a folder sorts them by time. */
-private fun exportName(): String =
+/**
+ * [input], as typed for a saved collage's name, made a file name: the
+ * characters no folder takes dropped, ".jpg" put after it unless it ends in a
+ * JPEG's extension already, and [defaultImageName] if nothing is left. A
+ * name taken in the folder is not overwritten: the system numbers the new one.
+ */
+fun jpegFileName(input: String): String {
+    val clean = input.filterNot { it in FORBIDDEN_IN_NAMES || it.isISOControl() }.trim().trim('.')
+    val name = clean.ifEmpty { defaultImageName() }
+    val lower = name.lowercase(Locale.ROOT)
+    return if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) name else "$name.jpg"
+}
+
+private const val FORBIDDEN_IN_NAMES = "/\\:*?\"<>|"
+
+/** A saved collage's name unless the user gives another: the app's and the moment, so a folder sorts them by time. */
+fun defaultImageName(): String =
     "PhotoCollage-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT))
