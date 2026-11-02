@@ -13,6 +13,8 @@
     <string name="setting_update_check">Проверять обновления при запуске</string>
     <string name="setting_export_size">Размер сохраняемого изображения</string>
     <string name="pixels_unit">пикс</string>
+    <string name="setting_save_folder">Папка для сохранения</string>
+    <string name="choose_folder">Выбрать папку</string>
     <string name="theme_system">Системная</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
@@ -21,7 +23,7 @@
     <string name="redo">Повторить</string>
     <string name="choose_photos">Выбрать фото</string>
     <string name="new_collage">Новый коллаж</string>
-    <string name="save_image">Сохранить в галерею</string>
+    <string name="save_image">Сохранить</string>
     <string name="share">Поделиться</string>
     <string name="save_draft">Сохранить черновик</string>
     <string name="open_draft">Открыть черновик</string>
@@ -47,7 +49,7 @@
     <string name="draft_saved">Черновик сохранён</string>
     <string name="draft_save_failed">Не удалось сохранить черновик</string>
     <string name="draft_open_failed">Не удалось открыть черновик</string>
-    <string name="image_saved">Сохранено в Pictures/PhotoCollage</string>
+    <string name="image_saved">Сохранено</string>
     <string name="image_save_failed">Не удалось сохранить изображение</string>
     <string name="image_too_large">Не хватает памяти для такого размера изображения</string>
 </resources>

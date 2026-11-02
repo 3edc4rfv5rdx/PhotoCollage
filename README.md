@@ -21,14 +21,16 @@ save or share.**
 - **Look**: format 1:1, 4:5, 3:4, 2:3, 9:16 or A4, portrait or landscape; the
   gap's width, rounded corners, and the background colour.
 - **Undo and redo** for every step.
-- **Out**: save to `Pictures/PhotoCollage` as a JPEG of 1080 to 4096 pixels on
-  its long side (Settings), or share it.
+- **Out**: save as a JPEG of 1080 to 4096 pixels on its long side (Settings),
+  named by the moment it was saved, into `Pictures/PhotoCollage` or a folder
+  picked in Settings; or share it.
 - **Draft**: save the collage by hand and open it again later; the app keeps
   its own copy of every photo in it.
 - English, Russian and Ukrainian; light and dark themes with accent colours.
 
 No permissions besides the updater's: photos come in through the picker or
-Share, and saving into Pictures needs none.
+Share, saving into Pictures needs none, and another folder is granted once
+through the system's folder picker.
 
 ## Build
 

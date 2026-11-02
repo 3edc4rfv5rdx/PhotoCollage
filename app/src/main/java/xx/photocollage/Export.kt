@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.core.graphics.createBitmap
 import java.io.File
@@ -19,8 +20,11 @@ import kotlin.math.roundToInt
 /** How a saved collage is compressed: high enough that the photos in it lose nothing to the eye. */
 private const val JPEG_QUALITY = 92
 
-/** The folder under Pictures/ saved collages go into. */
+/** The folder under Pictures/ saved collages go into unless Settings names another. */
 private const val ALBUM = "PhotoCollage"
+
+/** That folder as the user knows it. */
+const val DEFAULT_FOLDER_LABEL = "Pictures/$ALBUM"
 
 /** A canvas [longSide] pixels on its long side, the other side by [Collage.ratio]. */
 fun exportSize(collage: Collage, longSide: Int): Pair<Int, Int> {
@@ -65,8 +69,24 @@ fun renderCollage(context: Context, collage: Collage, longSide: Int): Bitmap? {
     return bitmap
 }
 
-/** Puts [bitmap] into Pictures/PhotoCollage as a JPEG, where every gallery sees it. Its URI, or null when that failed. */
-fun saveToGallery(context: Context, bitmap: Bitmap): Uri? {
+/**
+ * Saves [bitmap] as a JPEG into [folder] — a folder the user picked in
+ * Settings, by its tree URI — or into Pictures/PhotoCollage when null.
+ * Whether it was written.
+ */
+fun saveImage(context: Context, bitmap: Bitmap, folder: Uri?): Boolean =
+    if (folder == null) saveToPictures(context, bitmap) else saveToFolder(context, bitmap, folder)
+
+/** The folder [saveImage] writes into, as the user knows it: the path within its storage. */
+fun folderLabel(folder: Uri?): String {
+    if (folder == null) return DEFAULT_FOLDER_LABEL
+    // "primary:Pictures/Trips" on the phone's own storage, "1A2B-3C4D:DCIM" on a card.
+    val id = runCatching { DocumentsContract.getTreeDocumentId(folder) }.getOrNull() ?: return folder.toString()
+    return id.substringAfter(':').ifEmpty { "/" }
+}
+
+/** Through MediaStore, which needs no permission for its own Pictures/ folder. */
+private fun saveToPictures(context: Context, bitmap: Bitmap): Boolean {
     val resolver = context.contentResolver
     val values = ContentValues().apply {
         put(MediaStore.Images.Media.DISPLAY_NAME, "${exportName()}.jpg")
@@ -75,16 +95,44 @@ fun saveToGallery(context: Context, bitmap: Bitmap): Uri? {
         // Hidden from other apps until it is written whole.
         put(MediaStore.Images.Media.IS_PENDING, 1)
     }
-    val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return null
+    val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
     return try {
-        val written = resolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it) }
-        check(written == true) { "nothing written" }
+        writeJpeg(context, bitmap, uri)
         resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
-        uri
+        true
     } catch (e: Exception) {
         resolver.delete(uri, null, null)
-        null
+        false
     }
+}
+
+/**
+ * Into a folder the user granted through the system's folder picker. False
+ * when the grant is gone or the folder is: the file is not made elsewhere
+ * behind their back.
+ */
+private fun saveToFolder(context: Context, bitmap: Bitmap, tree: Uri): Boolean {
+    val resolver = context.contentResolver
+    val doc = try {
+        val parent = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+        DocumentsContract.createDocument(resolver, parent, "image/jpeg", "${exportName()}.jpg")
+    } catch (e: Exception) {
+        null
+    } ?: return false
+    return try {
+        writeJpeg(context, bitmap, doc)
+        true
+    } catch (e: Exception) {
+        runCatching { DocumentsContract.deleteDocument(resolver, doc) }
+        false
+    }
+}
+
+private fun writeJpeg(context: Context, bitmap: Bitmap, uri: Uri) {
+    val written = context.contentResolver.openOutputStream(uri)?.use {
+        bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)
+    }
+    check(written == true) { "nothing written" }
 }
 
 /**
@@ -101,6 +149,6 @@ fun writeForSharing(context: Context, bitmap: Bitmap): File? = try {
     null
 }
 
-/** A saved collage's name: the app's and the moment, so the gallery sorts them by time. */
+/** A saved collage's name: the app's and the moment, so a folder sorts them by time. */
 private fun exportName(): String =
-    "PhotoCollage_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT))
+    "PhotoCollage-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT))

@@ -13,6 +13,8 @@
     <string name="setting_update_check">Check for updates at launch</string>
     <string name="setting_export_size">Saved image size</string>
     <string name="pixels_unit">px</string>
+    <string name="setting_save_folder">Save folder</string>
+    <string name="choose_folder">Choose folder</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
@@ -21,7 +23,7 @@
     <string name="redo">Redo</string>
     <string name="choose_photos">Choose photos</string>
     <string name="new_collage">New collage</string>
-    <string name="save_image">Save to gallery</string>
+    <string name="save_image">Save</string>
     <string name="share">Share</string>
     <string name="save_draft">Save draft</string>
     <string name="open_draft">Open draft</string>
@@ -47,7 +49,7 @@
     <string name="draft_saved">Draft saved</string>
     <string name="draft_save_failed">Could not save the draft</string>
     <string name="draft_open_failed">Could not open the draft</string>
-    <string name="image_saved">Saved to Pictures/PhotoCollage</string>
+    <string name="image_saved">Saved</string>
     <string name="image_save_failed">Could not save the image</string>
     <string name="image_too_large">Not enough memory for this image size</string>
 </resources>

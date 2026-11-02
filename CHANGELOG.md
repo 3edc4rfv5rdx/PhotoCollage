@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- N: Save goes into a folder picked in Settings, or Pictures/PhotoCollage, as PhotoCollage-<date>_<time>.jpg
 - F: A close button at the top left leaves the app
 - F: Cancel and the other ways out of a dialog are filled with the accent colour, not a pale wash of it
 - F: A black or white line round the collage on screen shows where it ends against a pale window

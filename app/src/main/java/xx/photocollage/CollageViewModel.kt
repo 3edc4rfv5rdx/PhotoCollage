@@ -352,10 +352,14 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- Out ----------
 
-    /** The collage into Pictures/PhotoCollage at the size Settings asks for. */
+    /** The collage into the folder Settings names, at the size it asks for. */
     fun saveImage() = rendering { bitmap ->
-        val uri = saveToGallery(context, bitmap)
-        say(Notice(if (uri != null) R.string.image_saved else R.string.image_save_failed))
+        val folder = AppSettings.saveFolder.value
+        if (saveImage(context, bitmap, folder)) {
+            say(Notice(R.string.image_saved, listOf(folderLabel(folder))))
+        } else {
+            say(Notice(R.string.image_save_failed))
+        }
     }
 
     /** The collage handed to whichever app the user picks. */

@@ -3,12 +3,15 @@ package xx.photocollage
 import android.app.Activity
 import android.app.LocaleManager
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.content.res.XmlResourceParser
+import android.net.Uri
 import android.os.Build
 import android.os.LocaleList
 import androidx.core.content.edit
+import androidx.core.net.toUri
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +37,7 @@ object AppSettings {
     private const val KEY_ACCENT = "accent_index"
     private const val KEY_LANGUAGE = "language"
     private const val KEY_EXPORT_SIZE = "export_size"
+    private const val KEY_SAVE_FOLDER = "save_folder"
 
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
@@ -45,12 +49,17 @@ object AppSettings {
     private val _exportSize = MutableStateFlow(DEFAULT_EXPORT_SIZE)
     val exportSize: StateFlow<Int> = _exportSize.asStateFlow()
 
+    /** The folder a collage is saved into, by the tree URI the folder picker gave; null for Pictures/PhotoCollage. */
+    private val _saveFolder = MutableStateFlow<Uri?>(null)
+    val saveFolder: StateFlow<Uri?> = _saveFolder.asStateFlow()
+
     fun load(context: Context) {
         val prefs = prefs(context)
         _themeMode.value = enumOr(prefs.getString(KEY_THEME, null), ThemeMode.SYSTEM)
         _accentIndex.value = prefs.getInt(KEY_ACCENT, 0).coerceIn(0, ACCENT_COUNT - 1)
         _exportSize.value = prefs.getInt(KEY_EXPORT_SIZE, DEFAULT_EXPORT_SIZE).takeIf { it in EXPORT_SIZES }
             ?: DEFAULT_EXPORT_SIZE
+        _saveFolder.value = prefs.getString(KEY_SAVE_FOLDER, null)?.toUri()
     }
 
     fun setThemeMode(context: Context, mode: ThemeMode) {
@@ -62,6 +71,23 @@ object AppSettings {
         val clamped = index.coerceIn(0, ACCENT_COUNT - 1)
         _accentIndex.value = clamped
         prefs(context).edit { putInt(KEY_ACCENT, clamped) }
+    }
+
+    /**
+     * Saves into [folder] from now on, or into Pictures/PhotoCollage when
+     * null. The new folder's grant is kept across restarts and the old one's
+     * given back, so they do not pile up against the system's limit.
+     */
+    fun setSaveFolder(context: Context, folder: Uri?) {
+        val resolver = context.contentResolver
+        val access = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        if (folder != null) resolver.takePersistableUriPermission(folder, access)
+        val old = _saveFolder.value
+        if (old != null && old != folder) runCatching { resolver.releasePersistableUriPermission(old, access) }
+        _saveFolder.value = folder
+        prefs(context).edit {
+            if (folder == null) remove(KEY_SAVE_FOLDER) else putString(KEY_SAVE_FOLDER, folder.toString())
+        }
     }
 
     fun setExportSize(context: Context, size: Int) {

@@ -1,6 +1,8 @@
 package xx.photocollage.ui
 
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,17 +32,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.updater.Updater
 import xx.photocollage.AppSettings
+import xx.photocollage.DEFAULT_FOLDER_LABEL
 import xx.photocollage.EXPORT_SIZES
 import xx.photocollage.R
 import xx.photocollage.ThemeMode
 import xx.photocollage.currentLanguageTag
+import xx.photocollage.folderLabel
 import xx.photocollage.setLanguageTag
 import xx.photocollage.supportedLanguages
 
 /** Which editor is open; only one can be at a time. */
-private enum class Editing { NONE, THEME, ACCENT, LANGUAGE, EXPORT_SIZE }
+private enum class Editing { NONE, THEME, ACCENT, LANGUAGE, EXPORT_SIZE, SAVE_FOLDER }
 
-/** Theme, accent colour, language, the start-up update check, and the size a collage is saved at. */
+/** The lines of the save-folder dialog: the default folder, the one picked before if any, and a new pick. */
+private enum class FolderOption { DEFAULT, CURRENT, PICK }
+
+/** Theme, accent colour, language, the start-up update check, the size a collage is saved at, and the folder it goes into. */
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -48,6 +55,11 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     val themeMode by AppSettings.themeMode.collectAsState()
     val accentIndex by AppSettings.accentIndex.collectAsState()
     val exportSize by AppSettings.exportSize.collectAsState()
+    val saveFolder by AppSettings.saveFolder.collectAsState()
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        // A grant that cannot be kept is no folder to save into later: the setting stays as it was.
+        uri?.let { runCatching { AppSettings.setSaveFolder(context, it) } }
+    }
 
     val systemLabel = stringResource(R.string.language_system)
     val languages = remember(context, systemLabel) { supportedLanguages(context, systemLabel) }
@@ -99,6 +111,12 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             label = stringResource(R.string.setting_export_size),
             value = pixels(exportSize),
             onClick = { editing = Editing.EXPORT_SIZE },
+        )
+        HorizontalDivider()
+        SettingRow(
+            label = stringResource(R.string.setting_save_folder),
+            value = folderLabel(saveFolder),
+            onClick = { editing = Editing.SAVE_FOLDER },
         )
     }
 
@@ -153,6 +171,32 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             onPick = {
                 AppSettings.setExportSize(context, it)
                 editing = Editing.NONE
+            },
+        )
+
+        Editing.SAVE_FOLDER -> ChoiceDialog(
+            title = stringResource(R.string.setting_save_folder),
+            options = if (saveFolder == null) {
+                listOf(FolderOption.DEFAULT, FolderOption.PICK)
+            } else {
+                FolderOption.entries
+            },
+            selected = if (saveFolder == null) FolderOption.DEFAULT else FolderOption.CURRENT,
+            label = {
+                when (it) {
+                    FolderOption.DEFAULT -> DEFAULT_FOLDER_LABEL
+                    FolderOption.CURRENT -> folderLabel(saveFolder)
+                    FolderOption.PICK -> stringResource(R.string.choose_folder)
+                }
+            },
+            onDismiss = { editing = Editing.NONE },
+            onPick = {
+                editing = Editing.NONE
+                when (it) {
+                    FolderOption.DEFAULT -> AppSettings.setSaveFolder(context, null)
+                    FolderOption.CURRENT -> Unit
+                    FolderOption.PICK -> pickFolder.launch(saveFolder)
+                }
             },
         )
 
