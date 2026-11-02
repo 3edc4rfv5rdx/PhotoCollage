@@ -119,4 +119,45 @@ class GeometryTest {
         val turned = CellPhoto(Photo("a", 1, 1), zoom = 3f, centerX = 0.1f, quarter = 3).turned()
         assertEquals(CellPhoto(Photo("a", 1, 1), quarter = 0), turned)
     }
+
+    @Test
+    fun aTiltedPhotoCoversTheTiltedCellsCorners() {
+        // A square cell 100 wide turned 45 degrees spans 141 in the photo's frame.
+        val cell = CellPhoto(Photo("a", 100, 100), angle = 45f)
+        val (w, h) = cell.shownSize(100f, 100f)
+        assertEquals(141.42f, w, 0.01f)
+        assertEquals(141.42f, h, 0.01f)
+        // At zoom 1 there is no room to move it either way.
+        val clamped = cell.copy(centerX = 0.1f, centerY = 0.9f).clamped(100f, 100f)
+        assertEquals(0.5f, clamped.centerX, eps)
+        assertEquals(0.5f, clamped.centerY, eps)
+    }
+
+    @Test
+    fun aTurnOfTheFingersKeepsThePointUnderThem() {
+        val cell = CellPhoto(Photo("a", 100, 100), zoom = 4f)
+        val px = 20f
+        val py = 10f
+        val turned = cell.transformed(100f, 100f, 0f, 0f, 1f, px, py, rotation = 30f)
+        assertEquals(30f, turned.angle, eps)
+        val (w0, h0) = cell.shownSize(100f, 100f)
+        val (w1, h1) = turned.shownSize(100f, 100f)
+        val rad = Math.toRadians(30.0)
+        val qx = (px * Math.cos(rad) + py * Math.sin(rad)).toFloat()
+        val qy = (-px * Math.sin(rad) + py * Math.cos(rad)).toFloat()
+        assertEquals(cell.centerX + px / w0, turned.centerX + qx / w1, eps)
+        assertEquals(cell.centerY + py / h0, turned.centerY + qy / h1, eps)
+    }
+
+    @Test
+    fun anglesStayWithinHalfATurn() {
+        assertEquals(-170f, normalizedAngle(190f), eps)
+        assertEquals(180f, normalizedAngle(-180f), eps)
+        assertEquals(10f, normalizedAngle(370f), eps)
+    }
+
+    @Test
+    fun aQuarterTurnStraightensATilt() {
+        assertEquals(0f, CellPhoto(Photo("a", 1, 1), angle = 17f).turned().angle, eps)
+    }
 }

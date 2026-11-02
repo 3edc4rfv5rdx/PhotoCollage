@@ -125,7 +125,8 @@ data class Photo(val file: String, val width: Int, val height: Int)
  * A photo as it sits in its cell. [zoom] is 1 when it just covers the cell,
  * more when closer; [centerX] and [centerY] are the point of the photo at
  * the cell's middle, as parts of its turned width and height; [quarter] is
- * how many quarter turns clockwise it is shown at.
+ * how many quarter turns clockwise it is shown at, and [angle] the degrees
+ * clockwise it is tilted by on top of them, within ±180.
  */
 data class CellPhoto(
     val photo: Photo,
@@ -133,6 +134,7 @@ data class CellPhoto(
     val centerX: Float = 0.5f,
     val centerY: Float = 0.5f,
     val quarter: Int = 0,
+    val angle: Float = 0f,
 ) {
     /** Width over height as shown, after [quarter]. */
     val shownRatio: Float
@@ -232,7 +234,7 @@ fun Node.withRatio(path: List<Boolean>, ratio: Float): Node {
 }
 
 /** [cell] with its framing put back to the whole photo, as for a cell of another shape. */
-fun refit(cell: CellPhoto): CellPhoto = cell.copy(zoom = 1f, centerX = 0.5f, centerY = 0.5f)
+fun refit(cell: CellPhoto): CellPhoto = cell.copy(zoom = 1f, centerX = 0.5f, centerY = 0.5f, angle = 0f)
 
 /** The collage with the photos of cells [a] and [b] traded, each framed afresh for its new cell. */
 fun Collage.swapPhotos(a: Int, b: Int): Collage {

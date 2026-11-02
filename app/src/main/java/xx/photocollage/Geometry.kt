@@ -1,8 +1,10 @@
 package xx.photocollage
 
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sin
 
 /** A rectangle in pixels; free of android.graphics so the layout is testable on the JVM. */
 data class Box(val left: Float, val top: Float, val right: Float, val bottom: Float) {
@@ -106,12 +108,27 @@ fun fitCanvas(ratio: Float, width: Float, height: Float): Pair<Float, Float> =
 // ---------- A photo in its cell ----------
 
 /**
+ * The room the photo has to cover in its own frame: the cell [cellWidth] by
+ * [cellHeight] turned back by [CellPhoto.angle], as the box round it. Upright,
+ * the cell itself.
+ */
+private fun CellPhoto.span(cellWidth: Float, cellHeight: Float): Pair<Float, Float> {
+    if (angle == 0f) return cellWidth to cellHeight
+    val rad = Math.toRadians(angle.toDouble())
+    val c = abs(cos(rad)).toFloat()
+    val s = abs(sin(rad)).toFloat()
+    return (cellWidth * c + cellHeight * s) to (cellWidth * s + cellHeight * c)
+}
+
+/**
  * The photo's shown size, in pixels, in a cell [cellWidth] by [cellHeight]:
- * just covering it at zoom 1, larger with [CellPhoto.zoom].
+ * just covering it at zoom 1 — tilted, covering the tilted cell's every
+ * corner — larger with [CellPhoto.zoom].
  */
 fun CellPhoto.shownSize(cellWidth: Float, cellHeight: Float): Pair<Float, Float> {
+    val (spanW, spanH) = span(cellWidth, cellHeight)
     val ratio = shownRatio
-    val w = zoom * max(cellWidth, cellHeight * ratio)
+    val w = zoom * max(spanW, spanH * ratio)
     return w to w / ratio
 }
 
@@ -124,8 +141,9 @@ fun CellPhoto.clamped(cellWidth: Float, cellHeight: Float): CellPhoto {
     val z = zoom.coerceIn(1f, MAX_ZOOM)
     val held = copy(zoom = z)
     val (w, h) = held.shownSize(cellWidth, cellHeight)
-    val halfX = min(cellWidth / w / 2, 0.5f)
-    val halfY = min(cellHeight / h / 2, 0.5f)
+    val (spanW, spanH) = held.span(cellWidth, cellHeight)
+    val halfX = min(spanW / w / 2, 0.5f)
+    val halfY = min(spanH / h / 2, 0.5f)
     return held.copy(
         centerX = centerX.coerceIn(halfX, 1f - halfX),
         centerY = centerY.coerceIn(halfY, 1f - halfY),
@@ -134,9 +152,10 @@ fun CellPhoto.clamped(cellWidth: Float, cellHeight: Float): CellPhoto {
 
 /**
  * This framing after a finger gesture over a cell [cellWidth] by
- * [cellHeight]: moved by ([panX], [panY]) pixels and zoomed by [scale]
- * round ([pivotX], [pivotY]), a point given from the cell's middle — the
- * point of the photo under the fingers stays under them.
+ * [cellHeight]: the fingers' middle moved by ([panX], [panY]) pixels to
+ * ([pivotX], [pivotY]), given from the cell's middle, the photo zoomed by
+ * [scale] and tilted by [rotation] degrees clockwise round it — the point of
+ * the photo under the fingers stays under them.
  */
 fun CellPhoto.transformed(
     cellWidth: Float,
@@ -146,18 +165,35 @@ fun CellPhoto.transformed(
     scale: Float,
     pivotX: Float,
     pivotY: Float,
+    rotation: Float = 0f,
 ): CellPhoto {
     val (w0, h0) = shownSize(cellWidth, cellHeight)
-    // The photo's point under the pivot, before.
-    val u = centerX + pivotX / w0
-    val v = centerY + pivotY / h0
-    val zoomed = copy(zoom = (zoom * scale).coerceIn(1f, MAX_ZOOM))
-    val (w1, h1) = zoomed.shownSize(cellWidth, cellHeight)
-    // That point back under the pivot, then the pan.
-    return zoomed.copy(
-        centerX = u - pivotX / w1 - panX / w1,
-        centerY = v - pivotY / h1 - panY / h1,
-    ).clamped(cellWidth, cellHeight)
+    // The photo's point under the fingers before they moved, in its own frame.
+    val (ax, ay) = turnBack(pivotX - panX, pivotY - panY, angle)
+    val u = centerX + ax / w0
+    val v = centerY + ay / h0
+    val moved = copy(zoom = (zoom * scale).coerceIn(1f, MAX_ZOOM), angle = normalizedAngle(angle + rotation))
+    val (w1, h1) = moved.shownSize(cellWidth, cellHeight)
+    // That point under the fingers where they are now.
+    val (bx, by) = turnBack(pivotX, pivotY, moved.angle)
+    return moved.copy(centerX = u - bx / w1, centerY = v - by / h1).clamped(cellWidth, cellHeight)
+}
+
+/** ([x], [y]) on the screen as seen in a photo tilted [degrees] clockwise: turned back by them. */
+private fun turnBack(x: Float, y: Float, degrees: Float): Pair<Float, Float> {
+    if (degrees == 0f) return x to y
+    val rad = Math.toRadians(degrees.toDouble())
+    val c = cos(rad).toFloat()
+    val s = sin(rad).toFloat()
+    return (x * c + y * s) to (-x * s + y * c)
+}
+
+/** [degrees] brought within -180 (not included) to 180. */
+internal fun normalizedAngle(degrees: Float): Float {
+    var a = degrees % 360f
+    if (a > 180f) a -= 360f
+    if (a <= -180f) a += 360f
+    return a
 }
 
 /** This photo turned a quarter clockwise, framed afresh: the old framing means nothing on the turned photo. */

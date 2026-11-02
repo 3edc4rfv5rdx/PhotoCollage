@@ -263,11 +263,12 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         scale: Float,
         pivotX: Float,
         pivotY: Float,
+        rotation: Float,
     ) {
         if (index >= history.current.cellCount) return
         history.live(
             history.current.mapPhoto(index) {
-                it.transformed(cellWidth, cellHeight, panX, panY, scale, pivotX, pivotY)
+                it.transformed(cellWidth, cellHeight, panX, panY, scale, pivotX, pivotY, rotation)
             },
         )
         publish()

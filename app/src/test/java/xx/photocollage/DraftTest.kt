@@ -12,7 +12,7 @@ class DraftTest {
     private val collage = Collage(
         root = Split(
             Dir.ROW, 0.4f,
-            Leaf(CellPhoto(Photo("a.img", 4000, 3000), zoom = 2f, centerX = 0.3f, centerY = 0.6f, quarter = 1)),
+            Leaf(CellPhoto(Photo("a.img", 4000, 3000), zoom = 2f, centerX = 0.3f, centerY = 0.6f, quarter = 1, angle = -12.5f)),
             Split(Dir.COLUMN, 0.7f, Leaf(), Leaf(CellPhoto(Photo("b.img", 10, 20)))),
         ),
         aspect = Aspect.NINE_SIXTEEN,

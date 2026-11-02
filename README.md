@@ -14,8 +14,9 @@ save or share.**
 - **Layouts**: ready-made ones for 1 to 9 photos; any cell can be cut in two,
   across or down, or removed, up to 16 cells.
 - **Borders**: drag a gap between cells to move it.
-- **Photo in its cell**: drag to move it, pinch to zoom, turn it a quarter at a
-  time, replace or clear it.
+- **Photo in its cell**: drag to move it, pinch to zoom, turn two fingers to
+  tilt it to any angle, turn it a quarter at a time — which also straightens a
+  tilt — replace or clear it.
 - **Swap**: long-press a photo and drop it on another cell, or select a cell,
   tap Swap and tap the other one.
 - **Format**: portrait or landscape, the shape — 1:1, 4:5, 3:4, 2:3, 9:16 or

@@ -38,6 +38,7 @@ private fun cellJson(cell: CellPhoto): JSONObject = JSONObject()
     .put("centerX", cell.centerX.toDouble())
     .put("centerY", cell.centerY.toDouble())
     .put("quarter", cell.quarter)
+    .put("angle", cell.angle.toDouble())
 
 /**
  * The collage a draft's [text] holds, or null when it is no draft of this
@@ -83,6 +84,7 @@ private fun cellFrom(json: JSONObject, exists: (String) -> Boolean): CellPhoto? 
         centerX = json.optDouble("centerX", 0.5).toFloat().coerceIn(0f, 1f),
         centerY = json.optDouble("centerY", 0.5).toFloat().coerceIn(0f, 1f),
         quarter = json.optInt("quarter", 0).mod(4),
+        angle = normalizedAngle(json.optDouble("angle", 0.0).toFloat()),
     )
 }
 

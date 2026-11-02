@@ -70,4 +70,6 @@ private fun photoMatrix(cell: CellPhoto, bitmap: Bitmap, box: Box, out: Matrix) 
     out.postTranslate(-turned.left, -turned.top)
     out.postScale(shownW / turned.width(), shownH / turned.height())
     out.postTranslate(box.centerX - cell.centerX * shownW, box.centerY - cell.centerY * shownH)
+    // The tilt, round the cell's middle, where the framing put the photo's centre point.
+    if (cell.angle != 0f) out.postRotate(cell.angle, box.centerX, box.centerY)
 }

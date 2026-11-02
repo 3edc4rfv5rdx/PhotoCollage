@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateRotation
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Box
@@ -50,6 +51,7 @@ import xx.photocollage.EditorState
 import xx.photocollage.drawCollage
 import xx.photocollage.fitCanvas
 import xx.photocollage.layoutOf
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -67,6 +69,9 @@ private val EMPTY_ICON = 36.dp
 
 /** The sign on an empty cell: darker than the cell's grey, in either theme, since the cell is the same grey in both. */
 private val EmptyIconColor = Color(0xFF6E6E6E)
+
+/** How far, in degrees, two fingers must turn before the photo under them tilts. */
+private const val ROTATION_SLOP = 10f
 
 /** What a finger that came down on a cell turned out to want, once it is clear. */
 private enum class Touch { TAP, MOVE, HOLD }
@@ -152,6 +157,10 @@ fun CollageCanvas(
                             Touch.MOVE -> {
                                 if (!hasPhoto) return@awaitEachGesture
                                 vm.beginGesture()
+                                // A pinch turns a little by itself: the photo tilts only once the
+                                // fingers have turned past ROTATION_SLOP, the whole way at once then.
+                                var turnedSoFar = 0f
+                                var tilting = false
                                 try {
                                     do {
                                         val event = awaitPointerEvent()
@@ -159,10 +168,18 @@ fun CollageCanvas(
                                         val centroid = event.calculateCentroid(useCurrent = true)
                                         val pan = event.calculatePan()
                                         val zoom = event.calculateZoom()
-                                        if (centroid != Offset.Unspecified && (pan != Offset.Zero || zoom != 1f)) {
+                                        val turn = event.calculateRotation()
+                                        val rotation = if (tilting) {
+                                            turn
+                                        } else {
+                                            turnedSoFar += turn
+                                            tilting = abs(turnedSoFar) > ROTATION_SLOP
+                                            if (tilting) turnedSoFar else 0f
+                                        }
+                                        if (centroid != Offset.Unspecified && (pan != Offset.Zero || zoom != 1f || rotation != 0f)) {
                                             vm.transformPhoto(
                                                 cell, box.width, box.height, pan.x, pan.y, zoom,
-                                                centroid.x - box.centerX, centroid.y - box.centerY,
+                                                centroid.x - box.centerX, centroid.y - box.centerY, rotation,
                                             )
                                         }
                                         event.changes.forEach { if (it.positionChanged()) it.consume() }
