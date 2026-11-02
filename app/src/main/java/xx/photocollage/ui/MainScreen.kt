@@ -250,6 +250,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
             onAspect = vm::setAspect,
             onLongSide = vm::setLongSide,
             onPreset = vm::setPreset,
+            onRestore = vm::restoreFormat,
             onDismiss = { dialog = Dialog.NONE },
         )
         Dialog.SAVE -> SaveDialog(onDismiss = { dialog = Dialog.NONE }) {

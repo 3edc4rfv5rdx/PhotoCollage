@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- F: The Format dialog has Cancel, which puts back the format it opened on
 - N: The collage's settings sit under a wrench at the top, and a selected cell's tools under the same button as a pencil, so nothing under the collage hides off the screen or makes it jump
 - F: Undo and redo sit at the right of the top bar, beside the ⋮ menu
 - N: Properties in the ⋮ menu show the collage's way round, shape, size, preset, cells and photos

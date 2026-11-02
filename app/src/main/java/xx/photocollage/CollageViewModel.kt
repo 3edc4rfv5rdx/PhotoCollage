@@ -212,6 +212,11 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setPreset(preset: Preset) = push(history.current.withPreset(preset))
 
+    /** The way round, shape and size [from] had, as one step; nothing if they are the same now. */
+    fun restoreFormat(from: Collage) = push(
+        history.current.copy(aspect = from.aspect, landscape = from.landscape, longSide = from.longSide),
+    )
+
     fun setLandscape(landscape: Boolean) = push(history.current.copy(landscape = landscape))
 
     fun setBackground(color: Int) = push(history.current.copy(background = color))

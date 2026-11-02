@@ -106,7 +106,8 @@ fun LayoutDialog(collage: Collage, onDismiss: () -> Unit, onPick: (Node) -> Unit
  * The canvas's shape and size, as four drop-downs: which way round, the
  * shape, its size in pixels, and a preset — a named standard that sets the
  * other three at once, shown as picked whenever they happen to make it. Every
- * pick takes effect at once, as a step of its own; Done only closes.
+ * pick takes effect at once, as a step of its own; Done keeps them, Cancel
+ * puts back the format the dialog opened on.
  */
 @Composable
 fun FormatDialog(
@@ -115,8 +116,11 @@ fun FormatDialog(
     onAspect: (Aspect) -> Unit,
     onLongSide: (Int) -> Unit,
     onPreset: (Preset) -> Unit,
+    onRestore: (Collage) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    // What Cancel goes back to: the collage as the dialog found it.
+    val opened = remember { collage }
     val portrait = stringResource(R.string.portrait)
     val landscape = stringResource(R.string.landscape)
     AlertDialog(
@@ -159,7 +163,13 @@ fun FormatDialog(
                 )
             }
         },
-        confirmButton = { DialogDismissButton(stringResource(R.string.done), onDismiss) },
+        confirmButton = { DialogConfirmButton(stringResource(R.string.done), onClick = onDismiss) },
+        dismissButton = {
+            DialogDismissButton(stringResource(R.string.cancel)) {
+                onRestore(opened)
+                onDismiss()
+            }
+        },
     )
 }
 
