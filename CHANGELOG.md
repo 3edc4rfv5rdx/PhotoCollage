@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+## v0.1.26 (2026-11-02)
 - F: A floppy-disk button in the top bar saves the image, and Save draft sits in the free strip under the collage
 - E: The layouts for three photos are four that look different — one over two, one beside two, three across, three down — instead of two pairs alike
 - N: A photo tilts to any angle as two fingers turn on it, still covering its whole cell; a quarter turn straightens it again
