@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- F: 1920 pixels is offered as the saved size, so 16:9 comes out as Full HD
 - F: Portrait or landscape is picked at the top of the Format dialog instead of by a tool of its own, and each format shows the size it is saved at
 - E: Dragging the gap or corner slider from the screen's left edge no longer starts the system back gesture and closes the app
 - R: Lint findings cleared: the app name in every locale, the KTX bitmap and canvas helpers, no always-false check in the renderer

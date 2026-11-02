@@ -21,7 +21,7 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 const val ACCENT_COUNT = 6
 
 /** The long sides a saved collage can be, in pixels. */
-val EXPORT_SIZES = listOf(1080, 2048, 3072, 4096)
+val EXPORT_SIZES = listOf(1080, 1920, 2048, 3072, 4096)
 const val DEFAULT_EXPORT_SIZE = 2048
 
 /**
