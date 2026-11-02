@@ -78,10 +78,10 @@ private enum class Screen { EDITOR, SETTINGS }
 
 /** The editor, and Settings over it from the ⋮ menu. */
 @Composable
-fun MainScreen(vm: CollageViewModel, onAbout: () -> Unit) {
+fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
     var screen by rememberSaveable { mutableStateOf(Screen.EDITOR) }
     when (screen) {
-        Screen.EDITOR -> EditorScreen(vm, onSettings = { screen = Screen.SETTINGS }, onAbout = onAbout)
+        Screen.EDITOR -> EditorScreen(vm, onExit = onExit, onSettings = { screen = Screen.SETTINGS }, onAbout = onAbout)
         Screen.SETTINGS -> AppScreen(title = stringResource(R.string.settings), onBack = { screen = Screen.EDITOR }) {
             SettingsScreen(modifier = Modifier.weight(1f))
         }
@@ -98,7 +98,7 @@ private enum class Dialog { NONE, LAYOUT, FORMAT }
 private enum class PickMode { NEW, REPLACE }
 
 @Composable
-private fun EditorScreen(vm: CollageViewModel, onSettings: () -> Unit, onAbout: () -> Unit) {
+private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: () -> Unit, onAbout: () -> Unit) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
     var adjust by rememberSaveable { mutableStateOf(Adjust.NONE) }
@@ -132,7 +132,14 @@ private fun EditorScreen(vm: CollageViewModel, onSettings: () -> Unit, onAbout: 
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
-            TopBar(state, vm, onNew = { pick(0, PickMode.NEW) }, onSettings = onSettings, onAbout = onAbout)
+            TopBar(
+                state,
+                vm,
+                onExit = onExit,
+                onNew = { pick(0, PickMode.NEW) },
+                onSettings = onSettings,
+                onAbout = onAbout,
+            )
             Box(Modifier.weight(1f).fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
                 CollageCanvas(
                     state = state,
@@ -196,6 +203,7 @@ private const val IMAGES = "image/*"
 private fun TopBar(
     state: EditorState,
     vm: CollageViewModel,
+    onExit: () -> Unit,
     onNew: () -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit,
@@ -203,6 +211,7 @@ private fun TopBar(
     var menu by remember { mutableStateOf(false) }
     val hasPhotos = !state.collage.isEmpty
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        LargeIconButton(Icons.Filled.Close, stringResource(R.string.close), onExit)
         LargeIconButton(Icons.AutoMirrored.Filled.Undo, stringResource(R.string.undo), vm::undo, enabled = state.canUndo)
         LargeIconButton(Icons.AutoMirrored.Filled.Redo, stringResource(R.string.redo), vm::redo, enabled = state.canRedo)
         Spacer(Modifier.weight(1f))

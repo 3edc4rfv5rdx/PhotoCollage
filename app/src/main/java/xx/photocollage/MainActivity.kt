@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
 
             PhotoCollageTheme(themeMode, accentIndex) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    MainScreen(vm = viewModel, onAbout = ::showAbout)
+                    MainScreen(vm = viewModel, onExit = ::finish, onAbout = ::showAbout)
                 }
             }
         }

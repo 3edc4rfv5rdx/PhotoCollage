@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- F: A close button at the top left leaves the app
 - F: Cancel and the other ways out of a dialog are filled with the accent colour, not a pale wash of it
 - F: A black or white line round the collage on screen shows where it ends against a pale window
 - E: The collage no longer paints over the rest of the screen, so the top bar and the Layout dialog's counts and previews show again
