@@ -11,21 +11,33 @@ private const val FEATURE_RATIO = 0.6f
 
 /**
  * The ready-made layouts for [count] cells, the plainest first: rows of
- * cells, columns of them, then one cell large beside or above the rest.
- * No two alike.
+ * cells, columns of them, then — for three — all three in a line either way,
+ * and from four one cell large beside or above the rest. Three in a row with
+ * one large would only be the grid again with its line moved a little. No two
+ * that look alike: a square grid built either way round is offered once.
  */
 fun templates(count: Int): List<Node> {
     val n = count.coerceIn(TEMPLATE_COUNTS)
-    val out = mutableListOf(grid(n, Dir.COLUMN))
-    // A square grid looks the same either way round; only its trees differ.
-    val side = sqrt(n.toFloat()).roundToInt()
-    if (side * side != n) out += grid(n, Dir.ROW)
-    if (n >= 3) {
+    val out = mutableListOf(grid(n, Dir.COLUMN), grid(n, Dir.ROW))
+    if (n == 3) {
+        out += strip(n, Dir.ROW)
+        out += strip(n, Dir.COLUMN)
+    }
+    if (n >= 4) {
         out += Split(Dir.ROW, FEATURE_RATIO, Leaf(), strip(n - 1, Dir.COLUMN))
         out += Split(Dir.COLUMN, FEATURE_RATIO, Leaf(), strip(n - 1, Dir.ROW))
     }
-    return out.distinct()
+    return out.distinctBy(::cellsOf)
 }
+
+/**
+ * [root]'s cells on a square of side 1000 with no gap, rounded and sorted:
+ * what it looks like, whatever tree it is or order it reads its cells in.
+ */
+private fun cellsOf(root: Node): List<List<Int>> =
+    layoutOf(Collage(root = root, gap = 0f), 1000f, 1000f).cells
+        .map { listOf(it.left, it.top, it.right, it.bottom).map(Float::roundToInt) }
+        .sortedWith(compareBy({ it[0] }, { it[1] }))
 
 /**
  * [n] cells in lines as near to a square grid as they go, the longer lines

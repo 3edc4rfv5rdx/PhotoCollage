@@ -21,6 +21,16 @@ class TemplatesTest {
     }
 
     @Test
+    fun threeHasFourLayoutsThatLookDifferent() {
+        // One over two, one beside two, three across, three down.
+        val shapes = templates(3).map { root ->
+            layoutOf(Collage(root = root, gap = 0f), 600f, 600f).cells.map { it.width to it.height }.sortedBy { it.first }
+        }
+        assertEquals(4, shapes.size)
+        assertEquals(4, shapes.distinct().size)
+    }
+
+    @Test
     fun aSquareGridIsOfferedOnce() {
         // The grid, then one large cell beside the rest and above them.
         assertEquals(3, templates(4).size)
