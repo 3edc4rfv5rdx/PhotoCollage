@@ -15,7 +15,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.max
-import kotlin.math.roundToInt
 
 /** How a saved collage is compressed: high enough that the photos in it lose nothing to the eye. */
 private const val JPEG_QUALITY = 92
@@ -26,24 +25,14 @@ private const val ALBUM = "PhotoCollage"
 /** That folder as the user knows it. */
 const val DEFAULT_FOLDER_LABEL = "Pictures/$ALBUM"
 
-/** A canvas [longSide] pixels on its long side, the other side by [Collage.ratio]. */
-fun exportSize(collage: Collage, longSide: Int): Pair<Int, Int> {
-    val ratio = collage.ratio
-    return if (ratio >= 1f) {
-        longSide to max(1, (longSide / ratio).roundToInt())
-    } else {
-        max(1, (longSide * ratio).roundToInt()) to longSide
-    }
-}
-
 /**
- * [collage] drawn at [longSide] pixels on its long side. Each photo is
+ * [collage] drawn at its [savedSize]. Each photo is
  * decoded afresh at the size its cell shows it at — sharper than the
  * editor's copies — and let go as soon as it is drawn, so only one is in
  * memory at a time. Null when memory runs out.
  */
-fun renderCollage(context: Context, collage: Collage, longSide: Int): Bitmap? {
-    val (width, height) = exportSize(collage, longSide)
+fun renderCollage(context: Context, collage: Collage): Bitmap? {
+    val (width, height) = collage.savedSize()
     val bitmap = try {
         createBitmap(width, height)
     } catch (e: OutOfMemoryError) {
@@ -65,7 +54,7 @@ fun renderCollage(context: Context, collage: Collage, longSide: Int): Bitmap? {
         height.toFloat(),
         layout,
         onDrawn = { it.recycle() },
-    ) { photo -> decodePhoto(photoFile(context, photo), needed[photo] ?: longSide) }
+    ) { photo -> decodePhoto(photoFile(context, photo), needed[photo] ?: max(width, height)) }
     return bitmap
 }
 

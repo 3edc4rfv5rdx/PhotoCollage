@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- N: The Format dialog picks the way round, the shape, the size it is saved at and a preset — Instagram, Stories, HD to 4K, prints — each a drop-down, and the size belongs to the collage instead of Settings
 - N: Save goes into a folder picked in Settings, or Pictures/PhotoCollage, as PhotoCollage-<date>_<time>.jpg
 - F: A close button at the top left leaves the app
 - F: Cancel and the other ways out of a dialog are filled with the accent colour, not a pale wash of it

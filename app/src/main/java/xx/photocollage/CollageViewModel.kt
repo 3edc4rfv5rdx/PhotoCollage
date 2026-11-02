@@ -203,7 +203,14 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         if (photos.size > root.leafCount) say(Notice(R.string.photos_left_out, listOf(photos.size - root.leafCount)))
     }
 
-    fun setAspect(aspect: Aspect) = push(history.current.copy(aspect = aspect))
+    fun setAspect(aspect: Aspect) = push(history.current.withAspect(aspect))
+
+    fun setLongSide(longSide: Int) {
+        val c = history.current
+        if (longSide in c.aspect.sizes) push(c.copy(longSide = longSide))
+    }
+
+    fun setPreset(preset: Preset) = push(history.current.withPreset(preset))
 
     fun setLandscape(landscape: Boolean) = push(history.current.copy(landscape = landscape))
 
@@ -371,11 +378,10 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     private fun rendering(then: (Bitmap) -> Unit) {
         if (_state.value.busy) return
         val collage = history.current
-        val longSide = AppSettings.exportSize.value
         setBusy(true)
         viewModelScope.launch {
             val bitmap = withContext(Dispatchers.Default) {
-                photoLock.withLock { renderCollage(context, collage, longSide) }
+                photoLock.withLock { renderCollage(context, collage) }
             }
             if (bitmap == null) {
                 say(Notice(R.string.image_too_large))

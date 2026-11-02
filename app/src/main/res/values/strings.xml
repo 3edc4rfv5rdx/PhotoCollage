@@ -11,8 +11,6 @@
     <string name="setting_accent">Color</string>
     <string name="setting_language">Language</string>
     <string name="setting_update_check">Check for updates at launch</string>
-    <string name="setting_export_size">Saved image size</string>
-    <string name="pixels_unit">px</string>
     <string name="setting_save_folder">Save folder</string>
     <string name="choose_folder">Choose folder</string>
     <string name="theme_system">System</string>
@@ -28,6 +26,10 @@
     <string name="save_draft">Save draft</string>
     <string name="open_draft">Open draft</string>
     <string name="layout">Layout</string>
+    <string name="shape">Shape</string>
+    <string name="size">Size</string>
+    <string name="orientation">Orientation</string>
+    <string name="preset">Preset</string>
     <string name="format">Format</string>
     <string name="portrait">Portrait</string>
     <string name="landscape">Landscape</string>

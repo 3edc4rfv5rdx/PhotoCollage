@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import dev.updater.Updater
 import xx.photocollage.AppSettings
 import xx.photocollage.DEFAULT_FOLDER_LABEL
-import xx.photocollage.EXPORT_SIZES
 import xx.photocollage.R
 import xx.photocollage.ThemeMode
 import xx.photocollage.currentLanguageTag
@@ -42,19 +41,18 @@ import xx.photocollage.setLanguageTag
 import xx.photocollage.supportedLanguages
 
 /** Which editor is open; only one can be at a time. */
-private enum class Editing { NONE, THEME, ACCENT, LANGUAGE, EXPORT_SIZE, SAVE_FOLDER }
+private enum class Editing { NONE, THEME, ACCENT, LANGUAGE, SAVE_FOLDER }
 
 /** The lines of the save-folder dialog: the default folder, the one picked before if any, and a new pick. */
 private enum class FolderOption { DEFAULT, CURRENT, PICK }
 
-/** Theme, accent colour, language, the start-up update check, the size a collage is saved at, and the folder it goes into. */
+/** Theme, accent colour, language, the start-up update check, and the folder a collage is saved into. */
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val themeMode by AppSettings.themeMode.collectAsState()
     val accentIndex by AppSettings.accentIndex.collectAsState()
-    val exportSize by AppSettings.exportSize.collectAsState()
     val saveFolder by AppSettings.saveFolder.collectAsState()
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         // A grant that cannot be kept is no folder to save into later: the setting stays as it was.
@@ -108,12 +106,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         }
         HorizontalDivider()
         SettingRow(
-            label = stringResource(R.string.setting_export_size),
-            value = pixels(exportSize),
-            onClick = { editing = Editing.EXPORT_SIZE },
-        )
-        HorizontalDivider()
-        SettingRow(
             label = stringResource(R.string.setting_save_folder),
             value = folderLabel(saveFolder),
             onClick = { editing = Editing.SAVE_FOLDER },
@@ -159,18 +151,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 editing = Editing.NONE
                 // Persisted, and the activity recreated in the new language.
                 activity?.let { a -> setLanguageTag(a, it.tag) }
-            },
-        )
-
-        Editing.EXPORT_SIZE -> ChoiceDialog(
-            title = stringResource(R.string.setting_export_size),
-            options = EXPORT_SIZES,
-            selected = exportSize,
-            label = { pixels(it) },
-            onDismiss = { editing = Editing.NONE },
-            onPick = {
-                AppSettings.setExportSize(context, it)
-                editing = Editing.NONE
             },
         )
 
@@ -226,10 +206,6 @@ private fun SettingRow(label: String, value: String, onClick: () -> Unit) {
         Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
     }
 }
-
-/** A size in pixels with its unit, the long side of a saved collage. */
-@Composable
-private fun pixels(size: Int): String = "$size ${stringResource(R.string.pixels_unit)}"
 
 private fun ThemeMode.labelRes(): Int = when (this) {
     ThemeMode.SYSTEM -> R.string.theme_system

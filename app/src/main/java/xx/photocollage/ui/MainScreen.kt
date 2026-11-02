@@ -187,11 +187,10 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
         Dialog.FORMAT -> FormatDialog(
             collage = state.collage,
             onLandscape = vm::setLandscape,
+            onAspect = vm::setAspect,
+            onLongSide = vm::setLongSide,
+            onPreset = vm::setPreset,
             onDismiss = { dialog = Dialog.NONE },
-            onPick = {
-                vm.setAspect(it)
-                dialog = Dialog.NONE
-            },
         )
         Dialog.NONE -> Unit
     }

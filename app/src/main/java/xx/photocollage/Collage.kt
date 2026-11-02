@@ -1,5 +1,7 @@
 package xx.photocollage
 
+import kotlin.math.roundToInt
+
 /**
  * A collage: a canvas of a given shape cut into cells by a tree of straight
  * cuts, a photo in each cell or none, and the look of the gaps between them.
@@ -16,6 +18,8 @@ data class Collage(
     val corner: Float = 0f,
     /** The colour behind the cells, which is also the colour of the gaps, as ARGB. */
     val background: Int = DEFAULT_BACKGROUND,
+    /** The saved image's long side in pixels, one of [aspect]'s sizes; the shape gives the other. */
+    val longSide: Int = aspect.defaultLong,
 ) {
     /** Width over height of the canvas. */
     val ratio: Float
@@ -28,15 +32,68 @@ data class Collage(
     val isEmpty: Boolean get() = leaves.all { it.photo == null }
 }
 
-/** The canvas shapes on offer, each by its short and long side. */
-enum class Aspect(val short: Float, val long: Float) {
-    SQUARE(1f, 1f),
-    FOUR_FIVE(4f, 5f),
-    THREE_FOUR(3f, 4f),
-    TWO_THREE(2f, 3f),
-    NINE_SIXTEEN(9f, 16f),
-    A4(210f, 297f),
+/**
+ * The canvas shapes on offer, each by its short and long side, with the long
+ * sides in pixels it can be saved at and the one a collage starts at.
+ */
+enum class Aspect(val short: Float, val long: Float, val sizes: List<Int>, val defaultLong: Int) {
+    SQUARE(1f, 1f, listOf(1080, 2048, 4096), 2048),
+    FOUR_FIVE(4f, 5f, listOf(1350, 2500, 5000), 2500),
+    THREE_FOUR(3f, 4f, listOf(1440, 2048, 4032), 2048),
+    TWO_THREE(2f, 3f, listOf(1620, 1800, 3600), 1800),
+    NINE_SIXTEEN(9f, 16f, listOf(1280, 1920, 2560, 3840), 1920),
+    A4(210f, 297f, listOf(1754, 3508), 3508),
+    ;
+
+    init {
+        check(defaultLong in sizes) { "$name starts at a size it does not offer" }
+    }
 }
+
+/**
+ * A named standard: a shape, its way round and a size in one pick. Labels
+ * are not translated: they are names. Every size is one its shape offers.
+ */
+enum class Preset(val label: String, val aspect: Aspect, val landscape: Boolean, val longSide: Int) {
+    INSTAGRAM_SQUARE("Instagram 1:1", Aspect.SQUARE, false, 1080),
+    INSTAGRAM_PORTRAIT("Instagram 4:5", Aspect.FOUR_FIVE, false, 1350),
+    STORIES("Stories 9:16", Aspect.NINE_SIXTEEN, false, 1920),
+    HD("HD", Aspect.NINE_SIXTEEN, true, 1280),
+    FULL_HD("Full HD", Aspect.NINE_SIXTEEN, true, 1920),
+    QHD("2K", Aspect.NINE_SIXTEEN, true, 2560),
+    UHD("4K", Aspect.NINE_SIXTEEN, true, 3840),
+    PHOTO_10X15("10×15 300 dpi", Aspect.TWO_THREE, true, 1800),
+    A4_150("A4 150 dpi", Aspect.A4, false, 1754),
+    A4_300("A4 300 dpi", Aspect.A4, false, 3508),
+    ;
+
+    init {
+        check(longSide in aspect.sizes) { "$name is a size its shape does not offer" }
+    }
+}
+
+/** The collage's shape, way round and size set to [preset]'s. */
+fun Collage.withPreset(preset: Preset): Collage =
+    copy(aspect = preset.aspect, landscape = preset.landscape, longSide = preset.longSide)
+
+/** The preset the collage's shape, way round and size make, or null. A square is the same either way round. */
+fun Collage.preset(): Preset? = Preset.entries.firstOrNull {
+    it.aspect == aspect && it.longSide == longSide && (it.landscape == landscape || aspect == Aspect.SQUARE)
+}
+
+/** The saved image's size, width by height: [longSide] on the long side, the other by the shape. */
+fun Collage.savedSize(longSide: Int = this.longSide): Pair<Int, Int> {
+    val r = ratio
+    return if (r >= 1f) {
+        longSide to maxOf(1, (longSide / r).roundToInt())
+    } else {
+        maxOf(1, (longSide * r).roundToInt()) to longSide
+    }
+}
+
+/** The collage in another shape, at that shape's own starting size: the sizes of one shape mean nothing to another. */
+fun Collage.withAspect(aspect: Aspect): Collage =
+    if (aspect == this.aspect) this else copy(aspect = aspect, longSide = aspect.defaultLong)
 
 /** Which way a cut lays its two parts: [ROW] side by side, [COLUMN] one above the other. */
 enum class Dir { ROW, COLUMN }

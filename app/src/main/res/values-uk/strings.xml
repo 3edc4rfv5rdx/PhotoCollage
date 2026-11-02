@@ -11,8 +11,6 @@
     <string name="setting_accent">Колір</string>
     <string name="setting_language">Мова</string>
     <string name="setting_update_check">Перевіряти оновлення під час запуску</string>
-    <string name="setting_export_size">Розмір збереженого зображення</string>
-    <string name="pixels_unit">пікс</string>
     <string name="setting_save_folder">Папка для збереження</string>
     <string name="choose_folder">Вибрати папку</string>
     <string name="theme_system">Системна</string>
@@ -28,6 +26,10 @@
     <string name="save_draft">Зберегти чернетку</string>
     <string name="open_draft">Відкрити чернетку</string>
     <string name="layout">Розкладка</string>
+    <string name="shape">Форма</string>
+    <string name="size">Розмір</string>
+    <string name="orientation">Орієнтація</string>
+    <string name="preset">Пресет</string>
     <string name="format">Формат</string>
     <string name="portrait">Портрет</string>
     <string name="landscape">Пейзаж</string>

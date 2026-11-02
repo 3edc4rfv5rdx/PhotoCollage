@@ -111,4 +111,38 @@ class CollageTest {
         assertTrue(Collage(root = templates(4).first()).isEmpty)
         assertFalse(threeCells().isEmpty)
     }
+
+    @Test
+    fun presetsComeOutAtTheirStandard() {
+        fun size(p: Preset) = Collage().withPreset(p).savedSize()
+        assertEquals(1920 to 1080, size(Preset.FULL_HD))
+        assertEquals(3840 to 2160, size(Preset.UHD))
+        assertEquals(1080 to 1920, size(Preset.STORIES))
+        assertEquals(1080 to 1350, size(Preset.INSTAGRAM_PORTRAIT))
+        assertEquals(1800 to 1200, size(Preset.PHOTO_10X15))
+        assertEquals(2480 to 3508, size(Preset.A4_300))
+    }
+
+    @Test
+    fun aPresetIsFoundFromWhatItSets() {
+        Preset.entries.forEach { assertEquals(it, Collage().withPreset(it).preset()) }
+        // Full HD turned upright is Stories; a square is the same either way round.
+        assertEquals(Preset.STORIES, Collage().withPreset(Preset.FULL_HD).copy(landscape = false).preset())
+        assertEquals(Preset.INSTAGRAM_SQUARE, Collage().withPreset(Preset.INSTAGRAM_SQUARE).copy(landscape = true).preset())
+        assertNull(Collage(aspect = Aspect.NINE_SIXTEEN, longSide = 2560, landscape = false).preset())
+    }
+
+    @Test
+    fun aCollageStartsAtItsShapesOwnSize() {
+        assertEquals(Aspect.FOUR_FIVE.defaultLong, Collage().longSide)
+        assertEquals(1920, Collage(aspect = Aspect.NINE_SIXTEEN).longSide)
+    }
+
+    @Test
+    fun anotherShapeTakesItsOwnSize() {
+        val collage = Collage(aspect = Aspect.NINE_SIXTEEN, longSide = 3840)
+        assertEquals(Aspect.A4.defaultLong, collage.withAspect(Aspect.A4).longSide)
+        // The same shape again keeps the size picked for it.
+        assertEquals(3840, collage.withAspect(Aspect.NINE_SIXTEEN).longSide)
+    }
 }

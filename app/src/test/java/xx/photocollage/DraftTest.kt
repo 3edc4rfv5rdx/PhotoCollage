@@ -20,6 +20,7 @@ class DraftTest {
         gap = 0.02f,
         corner = 0.05f,
         background = 0xFF1F3A5F.toInt(),
+        longSide = 3840,
     )
 
     @Test
@@ -50,6 +51,12 @@ class DraftTest {
         val back = collageFromJson(json.toString()) { true }!!
         assertEquals(MAX_GAP, back.gap, 1e-6f)
         assertEquals(MIN_RATIO, (back.root as Split).ratio, 1e-6f)
+    }
+
+    @Test
+    fun aSizeTheShapeDoesNotOfferIsItsOwn() {
+        val json = JSONObject(collage.toJson()).put("longSide", 1350)
+        assertEquals(Aspect.NINE_SIXTEEN.defaultLong, collageFromJson(json.toString()) { true }!!.longSide)
     }
 
     @Test

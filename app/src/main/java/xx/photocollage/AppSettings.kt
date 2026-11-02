@@ -23,10 +23,6 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 /** How many accents the palette offers; the colours themselves are in ui/Common.kt. */
 const val ACCENT_COUNT = 6
 
-/** The long sides a saved collage can be, in pixels. */
-val EXPORT_SIZES = listOf(1080, 1920, 2048, 3072, 4096)
-const val DEFAULT_EXPORT_SIZE = 2048
-
 /**
  * Process-wide settings, backed by SharedPreferences and exposed as [StateFlow]
  * for Compose. Call [load] once before the UI reads them.
@@ -36,7 +32,6 @@ object AppSettings {
     private const val KEY_THEME = "theme_mode"
     private const val KEY_ACCENT = "accent_index"
     private const val KEY_LANGUAGE = "language"
-    private const val KEY_EXPORT_SIZE = "export_size"
     private const val KEY_SAVE_FOLDER = "save_folder"
 
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
@@ -44,10 +39,6 @@ object AppSettings {
 
     private val _accentIndex = MutableStateFlow(0)
     val accentIndex: StateFlow<Int> = _accentIndex.asStateFlow()
-
-    /** The long side of a saved or shared collage, one of [EXPORT_SIZES]. */
-    private val _exportSize = MutableStateFlow(DEFAULT_EXPORT_SIZE)
-    val exportSize: StateFlow<Int> = _exportSize.asStateFlow()
 
     /** The folder a collage is saved into, by the tree URI the folder picker gave; null for Pictures/PhotoCollage. */
     private val _saveFolder = MutableStateFlow<Uri?>(null)
@@ -57,8 +48,6 @@ object AppSettings {
         val prefs = prefs(context)
         _themeMode.value = enumOr(prefs.getString(KEY_THEME, null), ThemeMode.SYSTEM)
         _accentIndex.value = prefs.getInt(KEY_ACCENT, 0).coerceIn(0, ACCENT_COUNT - 1)
-        _exportSize.value = prefs.getInt(KEY_EXPORT_SIZE, DEFAULT_EXPORT_SIZE).takeIf { it in EXPORT_SIZES }
-            ?: DEFAULT_EXPORT_SIZE
         _saveFolder.value = prefs.getString(KEY_SAVE_FOLDER, null)?.toUri()
     }
 
@@ -88,12 +77,6 @@ object AppSettings {
         prefs(context).edit {
             if (folder == null) remove(KEY_SAVE_FOLDER) else putString(KEY_SAVE_FOLDER, folder.toString())
         }
-    }
-
-    fun setExportSize(context: Context, size: Int) {
-        if (size !in EXPORT_SIZES) return
-        _exportSize.value = size
-        prefs(context).edit { putInt(KEY_EXPORT_SIZE, size) }
     }
 
     /**

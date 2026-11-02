@@ -270,10 +270,7 @@ fun AppMenuItem(text: String, enabled: Boolean = true, danger: Boolean = false, 
     )
 }
 
-/**
- * Single choice from a labelled list; scrolls, since the language list can
- * grow. [header] sits above the list and stays put while it scrolls.
- */
+/** Single choice from a labelled list; scrolls, since the language list can grow. */
 @Composable
 fun <T> ChoiceDialog(
     title: String,
@@ -282,36 +279,34 @@ fun <T> ChoiceDialog(
     label: @Composable (T) -> String,
     onDismiss: () -> Unit,
     onPick: (T) -> Unit,
-    header: (@Composable () -> Unit)? = null,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column {
-                header?.invoke()
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    options.forEach { option ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .selectable(selected = option == selected, onClick = { onPick(option) })
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(selected = option == selected, onClick = { onPick(option) })
-                            Text(
-                                text = label(option),
-                                style = MaterialTheme.typography.titleLarge,
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                    }
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                options.forEach { option ->
+                    ChoiceRow(label(option), selected = option == selected) { onPick(option) }
                 }
             }
         },
         confirmButton = { DialogDismissButton(stringResource(R.string.cancel), onDismiss) },
     )
+}
+
+/** One line of a single choice: a radio button and its [text], the whole line tappable. */
+@Composable
+fun ChoiceRow(text: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(text = text, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
+    }
 }
 
 /** One accent colour, ringed when it is the one in force. */
