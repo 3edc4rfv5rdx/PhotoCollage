@@ -222,9 +222,9 @@ private fun TopBar(
     val hasPhotos = !state.collage.isEmpty
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         LargeIconButton(Icons.Filled.Close, stringResource(R.string.close), onExit)
+        Spacer(Modifier.weight(1f))
         LargeIconButton(Icons.AutoMirrored.Filled.Undo, stringResource(R.string.undo), vm::undo, enabled = state.canUndo)
         LargeIconButton(Icons.AutoMirrored.Filled.Redo, stringResource(R.string.redo), vm::redo, enabled = state.canRedo)
-        Spacer(Modifier.weight(1f))
         Box {
             MoreButton(onClick = { menu = true })
             AppMenu(expanded = menu, onDismissRequest = { menu = false }) {

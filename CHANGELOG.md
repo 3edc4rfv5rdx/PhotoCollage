@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- F: Undo and redo sit at the right of the top bar, beside the ⋮ menu
 - N: Properties in the ⋮ menu show the collage's way round, shape, size, preset, cells and photos
 - N: Save asks for the file name, the moment by default, and says the folder and name it saved under
 - N: The collage turns with the phone by the sensor even with auto-rotate off, while the editor stays upright; Settings can make it follow the system or never turn
