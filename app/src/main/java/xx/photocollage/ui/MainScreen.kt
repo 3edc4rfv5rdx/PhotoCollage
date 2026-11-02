@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.BorderOuter
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Dashboard
@@ -44,6 +45,9 @@ import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -368,12 +372,20 @@ private fun SwapBar(onCancel: () -> Unit) {
     }
 }
 
-/** The open one of the gap, corner and background settings, under the collage, with × to put it away. */
+/** The open one of the gap, corner and background settings, under the collage, with ✓ to put it away. */
 @Composable
 private fun AdjustRow(adjust: Adjust, state: EditorState, vm: CollageViewModel, onClose: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f)) { AdjustControl(adjust, state, vm) }
-        LargeIconButton(Icons.Filled.Close, stringResource(R.string.close), onClose)
+        // In the inverse pair, dark on a light window and light on a dark one, so it reads as the way out.
+        FilledIconButton(
+            onClick = onClose,
+            modifier = Modifier.padding(end = 8.dp),
+            colors = IconButtonDefaults.filledIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+            ),
+        ) { Icon(Icons.Filled.Check, stringResource(R.string.done)) }
     }
 }
 
