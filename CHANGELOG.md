@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- F: A black or white line round the collage on screen shows where it ends against a pale window
 - E: The collage no longer paints over the rest of the screen, so the top bar and the Layout dialog's counts and previews show again
 - F: 1920 pixels is offered as the saved size, so 16:9 comes out as Full HD
 - F: Portrait or landscape is picked at the top of the Format dialog instead of by a tool of its own, and each format shows the size it is saved at

@@ -32,6 +32,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -59,6 +60,9 @@ private val DIVIDER_REACH = 16.dp
 private val CARRIED_SIZE = 96.dp
 
 private val SELECTION_STROKE = 3.dp
+
+/** The line round the canvas on screen, so a background as pale as the window still shows where the collage ends. */
+private val EDGE_STROKE = 2.dp
 private val EMPTY_ICON = 36.dp
 
 /** The sign on an empty cell: darker than the cell's grey, in either theme, since the cell is the same grey in both. */
@@ -96,6 +100,9 @@ fun CollageCanvas(
         val haptics = LocalHapticFeedback.current
         var carry by remember { mutableStateOf<Carry?>(null) }
         val accent = MaterialTheme.colorScheme.primary
+        // Black on the light window, white on the dark one.
+        val edgeColor = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) Color.White else Color.Black
+        val edge = with(density) { EDGE_STROKE.toPx() }
         val stroke = with(density) { SELECTION_STROKE.toPx() }
         val carried = with(density) { CARRIED_SIZE.toPx() }
 
@@ -190,6 +197,13 @@ fun CollageCanvas(
                         previews[it.file]
                     }
                 }
+                // On screen only: drawCollage, which a saved image is drawn with too, knows nothing of it.
+                drawRect(
+                    color = edgeColor,
+                    topLeft = Offset(edge / 2, edge / 2),
+                    size = Size(size.width - edge, size.height - edge),
+                    style = Stroke(width = edge),
+                )
                 state.selected?.let { outline(layout, it, accent, stroke, dashed = false) }
                 state.swapFrom?.let { outline(layout, it, accent, stroke, dashed = true) }
                 carry?.let { c ->
