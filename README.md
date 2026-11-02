@@ -7,6 +7,10 @@ save or share.**
 ![Kotlin](https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
+| Collage | Cell | Settings |
+|---|---|---|
+| ![Three photos, one tall beside two, with the wrench menu open: layout, format, gap, corners, background](docs/screens/scr1.jpg) | ![A selected cell with the pencil menu open: replace, swap, turn, into columns, into rows, clear, remove cell](docs/screens/scr2.jpg) | ![Settings: theme, colour, language, update check, turning the collage, save folder](docs/screens/scr3.jpg) |
+
 ## Features
 
 - **Photos in**: from the system's picker — which lists every app that hands
