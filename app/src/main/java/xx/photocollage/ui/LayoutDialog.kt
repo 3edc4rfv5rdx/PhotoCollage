@@ -9,13 +9,19 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -26,12 +32,14 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import xx.photocollage.AppSettings
 import xx.photocollage.Aspect
 import xx.photocollage.Collage
 import xx.photocollage.Node
 import xx.photocollage.R
 import xx.photocollage.TEMPLATE_COUNTS
 import xx.photocollage.drawCollage
+import xx.photocollage.exportSize
 import xx.photocollage.templates
 
 private val PREVIEW_HEIGHT = 96.dp
@@ -81,6 +89,39 @@ fun LayoutDialog(collage: Collage, onDismiss: () -> Unit, onPick: (Node) -> Unit
             }
         },
         confirmButton = { DialogDismissButton(stringResource(R.string.cancel), onDismiss) },
+    )
+}
+
+/**
+ * The canvas's shape: portrait or landscape in one row on top, which turns
+ * the collage at once, and the ratios under it, each with the size in pixels
+ * it is saved at — the long side Settings asks for.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FormatDialog(collage: Collage, onLandscape: (Boolean) -> Unit, onDismiss: () -> Unit, onPick: (Aspect) -> Unit) {
+    val longSide by AppSettings.exportSize.collectAsState()
+    ChoiceDialog(
+        title = stringResource(R.string.format),
+        options = Aspect.entries,
+        selected = collage.aspect,
+        label = { aspect ->
+            val (w, h) = exportSize(collage.copy(aspect = aspect), longSide)
+            "${aspect.label(collage.landscape)} ($w×$h)"
+        },
+        onDismiss = onDismiss,
+        onPick = onPick,
+        header = {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                listOf(false to R.string.portrait, true to R.string.landscape).forEachIndexed { index, (landscape, text) ->
+                    SegmentedButton(
+                        selected = collage.landscape == landscape,
+                        onClick = { onLandscape(landscape) },
+                        shape = SegmentedButtonDefaults.itemShape(index, 2),
+                    ) { Text(stringResource(text)) }
+                }
+            }
+        },
     )
 }
 

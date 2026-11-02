@@ -270,7 +270,10 @@ fun AppMenuItem(text: String, enabled: Boolean = true, danger: Boolean = false, 
     )
 }
 
-/** Single choice from a labelled list; scrolls, since the language list can grow. */
+/**
+ * Single choice from a labelled list; scrolls, since the language list can
+ * grow. [header] sits above the list and stays put while it scrolls.
+ */
 @Composable
 fun <T> ChoiceDialog(
     title: String,
@@ -279,26 +282,30 @@ fun <T> ChoiceDialog(
     label: @Composable (T) -> String,
     onDismiss: () -> Unit,
     onPick: (T) -> Unit,
+    header: (@Composable () -> Unit)? = null,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                options.forEach { option ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(selected = option == selected, onClick = { onPick(option) })
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = option == selected, onClick = { onPick(option) })
-                        Text(
-                            text = label(option),
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
+            Column {
+                header?.invoke()
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    options.forEach { option ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(selected = option == selected, onClick = { onPick(option) })
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = option == selected, onClick = { onPick(option) })
+                            Text(
+                                text = label(option),
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
                     }
                 }
             }

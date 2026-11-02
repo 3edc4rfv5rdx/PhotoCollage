@@ -36,8 +36,6 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.HideImage
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.RoundedCorner
-import androidx.compose.material.icons.filled.StayCurrentLandscape
-import androidx.compose.material.icons.filled.StayCurrentPortrait
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.ViewColumn
@@ -66,7 +64,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import xx.photocollage.Aspect
 import xx.photocollage.BACKGROUNDS
 import xx.photocollage.CollageViewModel
 import xx.photocollage.Dir
@@ -155,12 +152,10 @@ private fun EditorScreen(vm: CollageViewModel, onSettings: () -> Unit, onAbout: 
                 else -> {
                     AdjustRow(adjust, state, vm)
                     CollageTools(
-                        state = state,
                         adjust = adjust,
                         onAdjust = { adjust = if (adjust == it) Adjust.NONE else it },
                         onLayout = { dialog = Dialog.LAYOUT },
                         onFormat = { dialog = Dialog.FORMAT },
-                        onOrientation = vm::toggleOrientation,
                     )
                 }
             }
@@ -182,11 +177,9 @@ private fun EditorScreen(vm: CollageViewModel, onSettings: () -> Unit, onAbout: 
             vm.applyTemplate(it)
             dialog = Dialog.NONE
         }
-        Dialog.FORMAT -> ChoiceDialog(
-            title = stringResource(R.string.format),
-            options = Aspect.entries,
-            selected = state.collage.aspect,
-            label = { it.label(state.collage.landscape) },
+        Dialog.FORMAT -> FormatDialog(
+            collage = state.collage,
+            onLandscape = vm::setLandscape,
             onDismiss = { dialog = Dialog.NONE },
             onPick = {
                 vm.setAspect(it)
@@ -253,23 +246,14 @@ private fun TopBar(
 /** The tools for the whole collage, when no cell is selected. */
 @Composable
 private fun CollageTools(
-    state: EditorState,
     adjust: Adjust,
     onAdjust: (Adjust) -> Unit,
     onLayout: () -> Unit,
     onFormat: () -> Unit,
-    onOrientation: () -> Unit,
 ) {
-    val collage = state.collage
     ToolRow {
         Tool(Icons.Filled.Dashboard, stringResource(R.string.layout), onClick = onLayout)
-        Tool(Icons.Filled.AspectRatio, collage.aspect.label(collage.landscape), onClick = onFormat)
-        Tool(
-            if (collage.landscape) Icons.Filled.StayCurrentLandscape else Icons.Filled.StayCurrentPortrait,
-            stringResource(if (collage.landscape) R.string.landscape else R.string.portrait),
-            enabled = collage.aspect != Aspect.SQUARE,
-            onClick = onOrientation,
-        )
+        Tool(Icons.Filled.AspectRatio, stringResource(R.string.format), onClick = onFormat)
         Tool(Icons.Filled.BorderOuter, stringResource(R.string.gap), active = adjust == Adjust.GAP) { onAdjust(Adjust.GAP) }
         Tool(Icons.Filled.RoundedCorner, stringResource(R.string.corners), active = adjust == Adjust.CORNER) {
             onAdjust(Adjust.CORNER)

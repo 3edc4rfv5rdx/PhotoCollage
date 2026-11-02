@@ -205,7 +205,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setAspect(aspect: Aspect) = push(history.current.copy(aspect = aspect))
 
-    fun toggleOrientation() = push(history.current.copy(landscape = !history.current.landscape))
+    fun setLandscape(landscape: Boolean) = push(history.current.copy(landscape = landscape))
 
     fun setBackground(color: Int) = push(history.current.copy(background = color))
 
