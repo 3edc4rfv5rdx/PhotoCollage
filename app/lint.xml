@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- ../shared/updater and ../shared/about are compiled into every app here
+         and answer to the lowest minSdk among them; their findings belong to
+         those modules, not to this app. -->
+    <issue id="all">
+        <ignore path="**/updater/android/**" />
+        <ignore path="**/about/android/**" />
+        <ignore regexp="(^|/)(updater|about)/android/src/" />
+    </issue>
+
+    <!-- The adaptive icon stays in mipmap-anydpi-v26: moving it to plain
+         anydpi broke resource linking of an incremental build. -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+
+    <!-- Only APKs are built, never a bundle, so there is no split by language
+         for the in-app language switch to miss. -->
+    <issue id="AppBundleLocaleChanges" severity="ignore" />
+
+    <!-- Portrait is the app's design: the editor's canvas, tools and gestures
+         are laid out for it. -->
+    <issue id="LockedOrientationActivity">
+        <ignore path="src/main/AndroidManifest.xml" />
+    </issue>
+    <issue id="DiscouragedApi">
+        <ignore regexp="Fixed screen orientations" />
+    </issue>
+
+    <!-- Below Android 13 there is no per-app language setting for localeConfig
+         to feed; the in-app switch covers those versions. -->
+    <issue id="UnusedAttribute">
+        <ignore regexp="localeConfig" />
+    </issue>
+
+    <!-- allowBackup is false, so there is no backup for fullBackupContent to
+         configure below Android 12. -->
+    <issue id="DataExtractionRules" severity="ignore" />
+
+    <!-- Upgrading the toolchain is a decision made for all the projects at
+         once, not a warning to meet in each of them. -->
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+</lint>
