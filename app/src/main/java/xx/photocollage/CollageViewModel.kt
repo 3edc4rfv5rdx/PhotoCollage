@@ -95,10 +95,13 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
             if (fresh && now.isEmpty) {
                 val root = templates(photos.size).first().withPhotos(photos.map { CellPhoto(it) })
                 push(now.copy(root = root))
+                _state.value = _state.value.copy(selected = null)
                 if (uris.size > room) say(Notice(R.string.photos_left_out, listOf(uris.size - room)))
             } else {
                 val (filled, left) = now.fillEmpty(cell ?: 0, photos)
                 push(filled)
+                // The cell was selected to be filled; filled, it is let go.
+                _state.value = _state.value.copy(selected = null)
                 val out = left + uris.size - taken.size
                 if (out > 0) say(Notice(R.string.photos_left_out, listOf(out)))
             }
@@ -130,8 +133,9 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * A tap on cell [index]: the second cell of a swap, or the cell selected —
-     * a tap on the selected one lets it go. Returns true when the cell is
-     * empty and nothing else took the tap, for the screen to ask for a photo.
+     * a tap on the selected one lets it go. An empty cell is selected and
+     * stays so, the picker it opens being left without a photo, so it can be
+     * removed: true is returned for the screen to ask for one.
      */
     fun tapCell(index: Int): Boolean {
         val s = _state.value
@@ -142,7 +146,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         }
         val leaf = history.current.leaves.getOrNull(index) ?: return false
         if (leaf.photo == null) {
-            _state.value = s.copy(selected = null)
+            _state.value = s.copy(selected = index)
             return true
         }
         _state.value = s.copy(selected = if (s.selected == index) null else index)

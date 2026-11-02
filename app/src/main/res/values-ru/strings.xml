@@ -46,6 +46,7 @@
     <string name="gap">Зазор</string>
     <string name="corners">Углы</string>
     <string name="background">Фон</string>
+    <string name="add_photo">Добавить фото</string>
     <string name="replace_photo">Заменить</string>
     <string name="swap">Поменять</string>
     <string name="swap_hint">Коснитесь ячейки для обмена</string>

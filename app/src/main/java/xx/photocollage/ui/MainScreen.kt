@@ -304,7 +304,10 @@ private fun TopBar(
             AppMenu(expanded = tools, onDismissRequest = { tools = false }) {
                 if (cell != null) {
                     CellTool.entries.forEach { tool ->
-                        AppMenuItem(stringResource(tool.text), enabled = tool.enabled(state.collage, cell), icon = tool.icon) {
+                        // Replace is Add photo on an empty cell.
+                        val empty = state.collage.leaves.getOrNull(cell)?.photo == null
+                        val text = if (tool == CellTool.REPLACE && empty) R.string.add_photo else tool.text
+                        AppMenuItem(stringResource(text), enabled = tool.enabled(state.collage, cell), icon = tool.icon) {
                             tools = false
                             onCellTool(tool)
                         }

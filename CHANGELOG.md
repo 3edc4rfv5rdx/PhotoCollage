@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- E: An empty cell can be selected, and so removed: a tap selects it as it opens the picker, and it stays selected if no photo is picked
 - F: The gap, corner and background strips close with a ✓ on the inverse colour instead of ×
 - F: The Format dialog has Cancel, which puts back the format it opened on
 - N: The collage's settings sit under a wrench at the top, and a selected cell's tools under the same button as a pencil, so nothing under the collage hides off the screen or makes it jump

@@ -46,6 +46,7 @@
     <string name="gap">Проміжок</string>
     <string name="corners">Кути</string>
     <string name="background">Тло</string>
+    <string name="add_photo">Додати фото</string>
     <string name="replace_photo">Замінити</string>
     <string name="swap">Поміняти</string>
     <string name="swap_hint">Торкніться комірки для обміну</string>

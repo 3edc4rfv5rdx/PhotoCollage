@@ -46,6 +46,7 @@
     <string name="gap">Gap</string>
     <string name="corners">Corners</string>
     <string name="background">Background</string>
+    <string name="add_photo">Add photo</string>
     <string name="replace_photo">Replace</string>
     <string name="swap">Swap</string>
     <string name="swap_hint">Tap the cell to swap with</string>
