@@ -38,9 +38,11 @@
          configure below Android 12. -->
     <issue id="DataExtractionRules" severity="ignore" />
 
-    <!-- Upgrading the toolchain is a decision made for all the projects at
-         once, not a warning to meet in each of them. -->
+    <!-- Upgrading the toolchain, and the Android version targeted with it, is
+         a decision made for all the projects at once, not a warning to meet
+         in each of them. -->
     <issue id="AndroidGradlePluginVersion" severity="ignore" />
     <issue id="GradleDependency" severity="ignore" />
     <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="OldTargetApi" severity="ignore" />
 </lint>
