@@ -34,6 +34,9 @@
     <string name="size">Размер</string>
     <string name="orientation">Ориентация</string>
     <string name="preset">Пресет</string>
+    <string name="properties">Свойства</string>
+    <string name="cells">Ячейки</string>
+    <string name="photos_count">Фото</string>
     <string name="file_name">Имя файла</string>
     <string name="format">Формат</string>
     <string name="portrait">Портрет</string>

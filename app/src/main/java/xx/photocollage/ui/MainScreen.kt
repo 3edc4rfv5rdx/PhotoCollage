@@ -92,7 +92,7 @@ fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
 private enum class Adjust { NONE, GAP, CORNER, BACKGROUND }
 
 /** Which dialog is up. */
-private enum class Dialog { NONE, LAYOUT, FORMAT, SAVE }
+private enum class Dialog { NONE, LAYOUT, FORMAT, SAVE, PROPERTIES }
 
 /** Where picked photos go: [NEW] into empty cells, [REPLACE] in place of the photo in a cell. */
 private enum class PickMode { NEW, REPLACE }
@@ -139,6 +139,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                 onExit = onExit,
                 onNew = { pick(0, PickMode.NEW) },
                 onSave = { dialog = Dialog.SAVE },
+                onProperties = { dialog = Dialog.PROPERTIES },
                 onSettings = onSettings,
                 onAbout = onAbout,
             )
@@ -199,6 +200,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
             dialog = Dialog.NONE
             vm.saveImage(it)
         }
+        Dialog.PROPERTIES -> PropertiesDialog(state.collage, onDismiss = { dialog = Dialog.NONE })
         Dialog.NONE -> Unit
     }
 }
@@ -212,6 +214,7 @@ private fun TopBar(
     onExit: () -> Unit,
     onNew: () -> Unit,
     onSave: () -> Unit,
+    onProperties: () -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit,
 ) {
@@ -245,6 +248,10 @@ private fun TopBar(
                 AppMenuItem(stringResource(R.string.open_draft), enabled = state.hasDraft) {
                     menu = false
                     vm.openDraft()
+                }
+                AppMenuItem(stringResource(R.string.properties)) {
+                    menu = false
+                    onProperties()
                 }
                 AppMenuItem(stringResource(R.string.settings)) {
                     menu = false

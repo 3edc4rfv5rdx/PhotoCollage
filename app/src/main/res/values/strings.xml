@@ -34,6 +34,9 @@
     <string name="size">Size</string>
     <string name="orientation">Orientation</string>
     <string name="preset">Preset</string>
+    <string name="properties">Properties</string>
+    <string name="cells">Cells</string>
+    <string name="photos_count">Photos</string>
     <string name="file_name">File name</string>
     <string name="format">Format</string>
     <string name="portrait">Portrait</string>

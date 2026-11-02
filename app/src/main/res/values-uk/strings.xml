@@ -34,6 +34,9 @@
     <string name="size">Розмір</string>
     <string name="orientation">Орієнтація</string>
     <string name="preset">Пресет</string>
+    <string name="properties">Властивості</string>
+    <string name="cells">Комірки</string>
+    <string name="photos_count">Фото</string>
     <string name="file_name">Ім’я файлу</string>
     <string name="format">Формат</string>
     <string name="portrait">Портрет</string>

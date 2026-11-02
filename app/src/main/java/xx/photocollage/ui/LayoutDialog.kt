@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import xx.photocollage.Aspect
@@ -46,6 +47,7 @@ import xx.photocollage.Preset
 import xx.photocollage.R
 import xx.photocollage.TEMPLATE_COUNTS
 import xx.photocollage.drawCollage
+import xx.photocollage.photos
 import xx.photocollage.preset
 import xx.photocollage.savedSize
 import xx.photocollage.templates
@@ -158,6 +160,34 @@ fun FormatDialog(
             }
         },
         confirmButton = { DialogDismissButton(stringResource(R.string.done), onDismiss) },
+    )
+}
+
+/** What the collage is: its way round, shape, saved size, preset, and how many cells and photos it has. */
+@Composable
+fun PropertiesDialog(collage: Collage, onDismiss: () -> Unit) {
+    val rows = listOf(
+        stringResource(R.string.orientation) to stringResource(if (collage.landscape) R.string.landscape else R.string.portrait),
+        stringResource(R.string.shape) to collage.aspect.label(collage.landscape),
+        stringResource(R.string.size) to sizeText(collage.savedSize()),
+        stringResource(R.string.preset) to (collage.preset()?.label ?: NO_PRESET),
+        stringResource(R.string.cells) to collage.cellCount.toString(),
+        stringResource(R.string.photos_count) to collage.photos().size.toString(),
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.properties)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                rows.forEach { (label, value) ->
+                    Row {
+                        Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        },
+        confirmButton = { DialogDismissButton(stringResource(R.string.close), onDismiss) },
     )
 }
 
