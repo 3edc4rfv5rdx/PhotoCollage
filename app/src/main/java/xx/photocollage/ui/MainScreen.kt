@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.HideImage
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.RoundedCorner
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.ViewColumn
@@ -228,6 +230,13 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                         HorizontalDivider()
                         AdjustRow(adjust, state, vm, onClose = { adjust = Adjust.NONE })
                     }
+                    // Nothing else wants the room: the draft is saved from here.
+                    !state.collage.isEmpty -> Box(
+                        Modifier.fillMaxWidth().height(BOTTOM_PANEL_HEIGHT),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Button(onClick = vm::saveDraft) { Text(stringResource(R.string.save_draft)) }
+                    }
                 }
             }
         }
@@ -292,6 +301,7 @@ private fun TopBar(
         Spacer(Modifier.weight(1f))
         LargeIconButton(Icons.AutoMirrored.Filled.Undo, stringResource(R.string.undo), vm::undo, enabled = state.canUndo)
         LargeIconButton(Icons.AutoMirrored.Filled.Redo, stringResource(R.string.redo), vm::redo, enabled = state.canRedo)
+        LargeIconButton(Icons.Filled.Save, stringResource(R.string.save_image), onSave, enabled = hasPhotos)
         // One button for both: the selected cell's tools while a cell is selected, the collage's otherwise —
         // a pencil for the one, a wrench for the other, so it says which before it opens.
         val cell = state.selected
