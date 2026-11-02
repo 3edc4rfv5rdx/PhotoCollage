@@ -6,6 +6,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import androidx.core.graphics.withSave
 
 /** What an empty cell is filled with, on screen and in a saved image alike. */
 const val EMPTY_CELL_COLOR = 0xFFC8C8C8.toInt()
@@ -36,19 +37,20 @@ fun drawCollage(
         if (cell.width <= 0f || cell.height <= 0f) return@forEachIndexed
         val rect = RectF(cell.left, cell.top, cell.right, cell.bottom)
         val radius = layout.cornerOf(index)
-        val bitmap = leaf.photo?.let { bitmapOf(it.photo) }
-        if (bitmap == null || leaf.photo == null) {
+        val photo = leaf.photo
+        val bitmap = photo?.let { bitmapOf(it.photo) }
+        if (photo == null || bitmap == null) {
             paint.color = EMPTY_CELL_COLOR
             canvas.drawRoundRect(rect, radius, radius, paint)
             return@forEachIndexed
         }
-        canvas.save()
-        path.reset()
-        path.addRoundRect(rect, radius, radius, Path.Direction.CW)
-        canvas.clipPath(path)
-        photoMatrix(leaf.photo.clamped(cell.width, cell.height), bitmap, cell, matrix)
-        canvas.drawBitmap(bitmap, matrix, paint)
-        canvas.restore()
+        canvas.withSave {
+            path.reset()
+            path.addRoundRect(rect, radius, radius, Path.Direction.CW)
+            clipPath(path)
+            photoMatrix(photo.clamped(cell.width, cell.height), bitmap, cell, matrix)
+            drawBitmap(bitmap, matrix, paint)
+        }
         onDrawn(bitmap)
     }
 }

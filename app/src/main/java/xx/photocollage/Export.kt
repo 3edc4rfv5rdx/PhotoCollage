@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.graphics.createBitmap
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -40,7 +41,7 @@ fun exportSize(collage: Collage, longSide: Int): Pair<Int, Int> {
 fun renderCollage(context: Context, collage: Collage, longSide: Int): Bitmap? {
     val (width, height) = exportSize(collage, longSide)
     val bitmap = try {
-        Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        createBitmap(width, height)
     } catch (e: OutOfMemoryError) {
         return null
     }
