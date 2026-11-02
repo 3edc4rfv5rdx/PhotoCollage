@@ -29,6 +29,8 @@
     <string name="share">Поділитися</string>
     <string name="save_draft">Зберегти чернетку</string>
     <string name="open_draft">Відкрити чернетку</string>
+    <string name="cell_tools">Комірка</string>
+    <string name="collage_settings">Налаштування колажу</string>
     <string name="layout">Розкладка</string>
     <string name="shape">Форма</string>
     <string name="size">Розмір</string>

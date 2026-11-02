@@ -254,10 +254,20 @@ fun AppMenu(
     )
 }
 
-/** One line of an [AppMenu], in the size every menu here uses; [danger] in red, for a step that cannot be undone. */
+/**
+ * One line of an [AppMenu], in the size every menu here uses, with [icon]
+ * before it if given; [danger] in red, for a step that cannot be undone.
+ */
 @Composable
-fun AppMenuItem(text: String, enabled: Boolean = true, danger: Boolean = false, onClick: () -> Unit) {
+fun AppMenuItem(
+    text: String,
+    enabled: Boolean = true,
+    danger: Boolean = false,
+    icon: ImageVector? = null,
+    onClick: () -> Unit,
+) {
     DropdownMenuItem(
+        leadingIcon = icon?.let { { Icon(it, contentDescription = null) } },
         text = {
             if (danger) {
                 Text(text, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error)

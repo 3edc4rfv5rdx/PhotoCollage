@@ -29,6 +29,8 @@
     <string name="share">Поделиться</string>
     <string name="save_draft">Сохранить черновик</string>
     <string name="open_draft">Открыть черновик</string>
+    <string name="cell_tools">Ячейка</string>
+    <string name="collage_settings">Настройки коллажа</string>
     <string name="layout">Раскладка</string>
     <string name="shape">Форма</string>
     <string name="size">Размер</string>

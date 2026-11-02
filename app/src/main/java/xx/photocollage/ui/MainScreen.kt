@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -16,10 +17,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.systemGestureExclusion
@@ -29,9 +29,11 @@ import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.BorderOuter
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.HideImage
 import androidx.compose.material.icons.filled.Palette
@@ -42,7 +44,6 @@ import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -61,10 +62,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import xx.photocollage.BACKGROUNDS
+import xx.photocollage.Collage
 import xx.photocollage.CollageViewModel
 import xx.photocollage.Dir
 import xx.photocollage.EditorEvent
@@ -93,6 +93,38 @@ private enum class Adjust { NONE, GAP, CORNER, BACKGROUND }
 
 /** Which dialog is up. */
 private enum class Dialog { NONE, LAYOUT, FORMAT, SAVE, PROPERTIES }
+
+/** The collage's own settings, under the wrench while no cell is selected: two open a dialog, three a strip under the collage. */
+private enum class CollageTool(val icon: ImageVector, @param:StringRes val text: Int) {
+    LAYOUT(Icons.Filled.Dashboard, R.string.layout),
+    FORMAT(Icons.Filled.AspectRatio, R.string.format),
+    GAP(Icons.Filled.BorderOuter, R.string.gap),
+    CORNERS(Icons.Filled.RoundedCorner, R.string.corners),
+    BACKGROUND(Icons.Filled.Palette, R.string.background),
+}
+
+/** What can be done to the selected cell, under the same button while one is. */
+private enum class CellTool(val icon: ImageVector, @param:StringRes val text: Int) {
+    REPLACE(Icons.Filled.AddPhotoAlternate, R.string.replace_photo),
+    SWAP(Icons.Filled.SwapHoriz, R.string.swap),
+    TURN(Icons.AutoMirrored.Filled.RotateRight, R.string.turn),
+    SPLIT_ACROSS(Icons.Filled.ViewColumn, R.string.split_across),
+    SPLIT_DOWN(Icons.Filled.ViewAgenda, R.string.split_down),
+    CLEAR(Icons.Filled.HideImage, R.string.clear_photo),
+    REMOVE(Icons.Filled.DeleteOutline, R.string.remove_cell),
+}
+
+/** Whether [tool] can be used on the selected cell of [collage]: a photo to act on, room to cut, another cell. */
+private fun CellTool.enabled(collage: Collage, cell: Int): Boolean {
+    val hasPhoto = collage.leaves.getOrNull(cell)?.photo != null
+    return when (this) {
+        CellTool.REPLACE -> true
+        CellTool.SWAP -> collage.cellCount > 1
+        CellTool.TURN, CellTool.CLEAR -> hasPhoto
+        CellTool.SPLIT_ACROSS, CellTool.SPLIT_DOWN -> collage.cellCount < MAX_CELLS
+        CellTool.REMOVE -> collage.cellCount > 1
+    }
+}
 
 /** Where picked photos go: [NEW] into empty cells, [REPLACE] in place of the photo in a cell. */
 private enum class PickMode { NEW, REPLACE }
@@ -140,6 +172,29 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                 onNew = { pick(0, PickMode.NEW) },
                 onSave = { dialog = Dialog.SAVE },
                 onProperties = { dialog = Dialog.PROPERTIES },
+                onCellTool = { tool ->
+                    val cell = state.selected
+                    if (cell != null) {
+                        when (tool) {
+                            CellTool.REPLACE -> pick(cell, PickMode.REPLACE)
+                            CellTool.SWAP -> vm.startSwap()
+                            CellTool.TURN -> vm.turnSelected()
+                            CellTool.SPLIT_ACROSS -> vm.splitSelected(Dir.ROW)
+                            CellTool.SPLIT_DOWN -> vm.splitSelected(Dir.COLUMN)
+                            CellTool.CLEAR -> vm.clearSelected()
+                            CellTool.REMOVE -> vm.removeSelected()
+                        }
+                    }
+                },
+                onTool = { tool ->
+                    when (tool) {
+                        CollageTool.LAYOUT -> dialog = Dialog.LAYOUT
+                        CollageTool.FORMAT -> dialog = Dialog.FORMAT
+                        CollageTool.GAP -> adjust = Adjust.GAP
+                        CollageTool.CORNERS -> adjust = Adjust.CORNER
+                        CollageTool.BACKGROUND -> adjust = Adjust.BACKGROUND
+                    }
+                },
                 onSettings = onSettings,
                 onAbout = onAbout,
             )
@@ -156,18 +211,19 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                     Button(onClick = { pick(0, PickMode.NEW) }) { Text(stringResource(R.string.choose_photos)) }
                 }
             }
-            HorizontalDivider()
-            when {
-                state.swapFrom != null -> SwapBar(onCancel = vm::cancelSwap)
-                state.selected != null -> CellTools(state, vm, onReplace = { pick(it, PickMode.REPLACE) })
-                else -> {
-                    AdjustRow(adjust, state, vm)
-                    CollageTools(
-                        adjust = adjust,
-                        onAdjust = { adjust = if (adjust == it) Adjust.NONE else it },
-                        onLayout = { dialog = Dialog.LAYOUT },
-                        onFormat = { dialog = Dialog.FORMAT },
-                    )
+            // The room under the collage is kept whether anything is in it or not: a
+            // panel that came and went would shrink and grow the collage under the
+            // finger. The collage's own settings live under the wrench at the top.
+            Column(Modifier.fillMaxWidth().heightIn(min = BOTTOM_PANEL_HEIGHT)) {
+                when {
+                    state.swapFrom != null -> {
+                        HorizontalDivider()
+                        SwapBar(onCancel = vm::cancelSwap)
+                    }
+                    adjust != Adjust.NONE -> {
+                        HorizontalDivider()
+                        AdjustRow(adjust, state, vm, onClose = { adjust = Adjust.NONE })
+                    }
                 }
             }
         }
@@ -207,6 +263,9 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
 
 private const val IMAGES = "image/*"
 
+/** The room kept under the collage: one strip — a slider, the colours, or the swap prompt. */
+private val BOTTOM_PANEL_HEIGHT = 64.dp
+
 @Composable
 private fun TopBar(
     state: EditorState,
@@ -215,16 +274,46 @@ private fun TopBar(
     onNew: () -> Unit,
     onSave: () -> Unit,
     onProperties: () -> Unit,
+    onTool: (CollageTool) -> Unit,
+    onCellTool: (CellTool) -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
+    var tools by remember { mutableStateOf(false) }
     val hasPhotos = !state.collage.isEmpty
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         LargeIconButton(Icons.Filled.Close, stringResource(R.string.close), onExit)
         Spacer(Modifier.weight(1f))
         LargeIconButton(Icons.AutoMirrored.Filled.Undo, stringResource(R.string.undo), vm::undo, enabled = state.canUndo)
         LargeIconButton(Icons.AutoMirrored.Filled.Redo, stringResource(R.string.redo), vm::redo, enabled = state.canRedo)
+        // One button for both: the selected cell's tools while a cell is selected, the collage's otherwise —
+        // a pencil for the one, a wrench for the other, so it says which before it opens.
+        val cell = state.selected
+        Box {
+            if (cell != null) {
+                LargeIconButton(Icons.Filled.Edit, stringResource(R.string.cell_tools), { tools = true })
+            } else {
+                LargeIconButton(Icons.Filled.Build, stringResource(R.string.collage_settings), { tools = true })
+            }
+            AppMenu(expanded = tools, onDismissRequest = { tools = false }) {
+                if (cell != null) {
+                    CellTool.entries.forEach { tool ->
+                        AppMenuItem(stringResource(tool.text), enabled = tool.enabled(state.collage, cell), icon = tool.icon) {
+                            tools = false
+                            onCellTool(tool)
+                        }
+                    }
+                } else {
+                    CollageTool.entries.forEach { tool ->
+                        AppMenuItem(stringResource(tool.text), icon = tool.icon) {
+                            tools = false
+                            onTool(tool)
+                        }
+                    }
+                }
+            }
+        }
         Box {
             MoreButton(onClick = { menu = true })
             AppMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -266,49 +355,6 @@ private fun TopBar(
     }
 }
 
-/** The tools for the whole collage, when no cell is selected. */
-@Composable
-private fun CollageTools(
-    adjust: Adjust,
-    onAdjust: (Adjust) -> Unit,
-    onLayout: () -> Unit,
-    onFormat: () -> Unit,
-) {
-    ToolRow {
-        Tool(Icons.Filled.Dashboard, stringResource(R.string.layout), onClick = onLayout)
-        Tool(Icons.Filled.AspectRatio, stringResource(R.string.format), onClick = onFormat)
-        Tool(Icons.Filled.BorderOuter, stringResource(R.string.gap), active = adjust == Adjust.GAP) { onAdjust(Adjust.GAP) }
-        Tool(Icons.Filled.RoundedCorner, stringResource(R.string.corners), active = adjust == Adjust.CORNER) {
-            onAdjust(Adjust.CORNER)
-        }
-        Tool(Icons.Filled.Palette, stringResource(R.string.background), active = adjust == Adjust.BACKGROUND) {
-            onAdjust(Adjust.BACKGROUND)
-        }
-    }
-}
-
-/** The tools for the selected cell. */
-@Composable
-private fun CellTools(state: EditorState, vm: CollageViewModel, onReplace: (Int) -> Unit) {
-    val cell = state.selected ?: return
-    val canSplit = state.collage.cellCount < MAX_CELLS
-    ToolRow {
-        Tool(Icons.Filled.AddPhotoAlternate, stringResource(R.string.replace_photo)) { onReplace(cell) }
-        Tool(Icons.Filled.SwapHoriz, stringResource(R.string.swap), enabled = state.collage.cellCount > 1, onClick = vm::startSwap)
-        Tool(Icons.AutoMirrored.Filled.RotateRight, stringResource(R.string.turn), onClick = vm::turnSelected)
-        Tool(Icons.Filled.ViewColumn, stringResource(R.string.split_across), enabled = canSplit) { vm.splitSelected(Dir.ROW) }
-        Tool(Icons.Filled.ViewAgenda, stringResource(R.string.split_down), enabled = canSplit) { vm.splitSelected(Dir.COLUMN) }
-        Tool(Icons.Filled.HideImage, stringResource(R.string.clear_photo), onClick = vm::clearSelected)
-        Tool(
-            Icons.Filled.DeleteOutline,
-            stringResource(R.string.remove_cell),
-            enabled = state.collage.cellCount > 1,
-            onClick = vm::removeSelected,
-        )
-        Tool(Icons.Filled.Close, stringResource(R.string.done), onClick = vm::deselect)
-    }
-}
-
 /** While a swap waits for its second cell: what to do, and a way out. */
 @Composable
 private fun SwapBar(onCancel: () -> Unit) {
@@ -321,9 +367,17 @@ private fun SwapBar(onCancel: () -> Unit) {
     }
 }
 
-/** The open one of the gap, corner and background settings, above the tools; nothing when none is. */
+/** The open one of the gap, corner and background settings, under the collage, with × to put it away. */
 @Composable
-private fun AdjustRow(adjust: Adjust, state: EditorState, vm: CollageViewModel) {
+private fun AdjustRow(adjust: Adjust, state: EditorState, vm: CollageViewModel, onClose: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) { AdjustControl(adjust, state, vm) }
+        LargeIconButton(Icons.Filled.Close, stringResource(R.string.close), onClose)
+    }
+}
+
+@Composable
+private fun AdjustControl(adjust: Adjust, state: EditorState, vm: CollageViewModel) {
     val collage = state.collage
     when (adjust) {
         Adjust.GAP -> AdjustSlider(collage.gap, 0f..MAX_GAP, vm::setGap, vm::endGesture)
@@ -359,46 +413,4 @@ private fun AdjustSlider(
         valueRange = range,
         modifier = Modifier.systemGestureExclusion().padding(horizontal = 24.dp),
     )
-}
-
-@Composable
-private fun ToolRow(content: @Composable () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) { content() }
-}
-
-/** One tool: its glyph over its name, tinted with the accent while [active]. */
-@Composable
-private fun Tool(
-    icon: ImageVector,
-    label: String,
-    enabled: Boolean = true,
-    active: Boolean = false,
-    onClick: () -> Unit,
-) {
-    val scheme = MaterialTheme.colorScheme
-    val color = when {
-        !enabled -> scheme.onSurface.copy(alpha = 0.38f)
-        active -> scheme.primary
-        else -> scheme.onSurface
-    }
-    Column(
-        Modifier
-            .widthIn(min = 64.dp)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(LARGE_ICON))
-        Text(
-            label,
-            color = color,
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-        )
-    }
 }

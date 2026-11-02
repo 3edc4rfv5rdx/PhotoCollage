@@ -29,6 +29,8 @@
     <string name="share">Share</string>
     <string name="save_draft">Save draft</string>
     <string name="open_draft">Open draft</string>
+    <string name="cell_tools">Cell</string>
+    <string name="collage_settings">Collage settings</string>
     <string name="layout">Layout</string>
     <string name="shape">Shape</string>
     <string name="size">Size</string>

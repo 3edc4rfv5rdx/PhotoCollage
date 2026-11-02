@@ -22,6 +22,9 @@ save or share.**
   A4 — and the size it is saved at; or a preset that sets all three at once:
   Instagram, Stories, HD, Full HD, 2K, 4K, a 10×15 print, A4.
 - **Look**: the gap's width, rounded corners, and the background colour.
+- **Tools**: layout, format, gap, corners and background under the wrench at
+  the top; while a cell is selected the same button is a pencil and holds the
+  cell's own tools.
 - **Undo and redo** for every step.
 - **Turning**: the collage turns with the phone by the sensor even with
   auto-rotate off, while the editor stays upright — or as the system says, or
