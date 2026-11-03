@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+## v0.2.50 (2026-11-03)
 - I: The test of the three-photo layouts measures cells before rounding them
 - F: Save draft is off while the draft already holds the collage
 - F: Save draft is back under the collage
