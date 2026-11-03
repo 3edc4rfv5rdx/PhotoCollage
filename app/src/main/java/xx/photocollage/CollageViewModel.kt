@@ -77,12 +77,15 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     /** What the draft file holds as far as this editor knows; null while unknown or when there is none. */
     private var draftCollage: Collage? = null
 
+    /** The collage left off at, opened at the start; its photos outlive the clean-up. */
+    private val leftOff: Collage?
+
     init {
-        // The collage left off at: the latest this process has written if any, as the file
-        // may not have caught up with it yet, else the file.
+        // The latest this process has written if any, as the file may not have caught up
+        // with it yet, else the file.
         val sessionText = pendingSession.value ?: runCatching { sessionFile(context).readText() }.getOrNull()
-        val restored = sessionText?.let(::parseCollage)
-        if (restored != null) history.reset(restored)
+        leftOff = sessionText?.let(::parseCollage)
+        leftOff?.let(history::reset)
         _state.value = EditorState(collage = history.current, hasDraft = draftFile(context).exists())
         loadPreviews(history.current)
         startSessionWriter(sessionFile(context))
@@ -90,14 +93,18 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
             val draft = withContext(Dispatchers.IO) { readCollage(draftFile(context)) }
             // A draft saved meanwhile is newer than the one read.
             if (draftCollage == null) draftCollage = draft
-            withContext(Dispatchers.IO) {
-                photoLock.withLock {
-                    // Once per process, keeping what the draft and the collage left off at name.
-                    if (cleaned.compareAndSet(false, true)) forgetPhotosExcept(context, keptPhotos(draft, restored))
-                }
-            }
+            withContext(Dispatchers.IO) { photoLock.withLock { cleanUpOnce() } }
         }
     }
+
+    /**
+     * The photo copies of an earlier run that neither the draft nor the
+     * collage left off at names, deleted once per process. Called under
+     * [photoLock] here and before every import, so whichever comes first
+     * does it, and never after a copy of this run is made.
+     */
+    private fun cleanUpOnce() =
+        forgetPhotosOnce(cleaned, photoDir(context)) { keptPhotos(readCollage(draftFile(context)), leftOff) }
 
     // ---------- Photos in ----------
 
@@ -144,7 +151,10 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         setBusy(true)
         viewModelScope.launch {
             val photos = withContext(Dispatchers.IO) {
-                photoLock.withLock { uris.mapNotNull { importPhoto(context, it) } }
+                photoLock.withLock {
+                    cleanUpOnce()
+                    uris.mapNotNull { importPhoto(context, it) }
+                }
             }
             setBusy(false)
             if (photos.size < uris.size) say(Notice(R.string.photos_unreadable, listOf(uris.size - photos.size)))

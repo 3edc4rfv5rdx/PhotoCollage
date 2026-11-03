@@ -8,6 +8,7 @@ import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Where the app keeps its own copy of every photo it was given. A copy, not
@@ -55,13 +56,16 @@ fun importPhoto(context: Context, uri: Uri): Photo? {
 }
 
 /**
- * Deletes every photo copy not in [keep] — the draft's and the collage left
- * off at. Run once per process, before anything is imported: the other
+ * Deletes every file in [dir] not in [keep] — the draft's photos and the
+ * collage left off at's — the first time [done] is seen unset, and sets it.
+ * Meant to run before the first copy of a run is made into [dir]: the other
  * copies of an earlier run are of no more use, and nothing of this run is
- * there yet to lose.
+ * there yet to lose. Whatever calls it later deletes nothing.
  */
-fun forgetPhotosExcept(context: Context, keep: Set<String>) {
-    photoDir(context).listFiles()?.forEach { if (it.name !in keep) it.delete() }
+fun forgetPhotosOnce(done: AtomicBoolean, dir: File, keep: () -> Set<String>) {
+    if (!done.compareAndSet(false, true)) return
+    val kept = keep()
+    dir.listFiles()?.forEach { if (it.name !in kept) it.delete() }
 }
 
 /**
