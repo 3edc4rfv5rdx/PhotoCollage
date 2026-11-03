@@ -70,17 +70,31 @@ fun renderCollage(context: Context, collage: Collage): Rendered {
         height.toFloat(),
         layout,
         onDrawn = { it.recycle() },
-    ) { photo ->
-        // Never more than the photo has: past that every size is the same whole photo again.
-        val start = min(needed[photo] ?: max(width, height), max(photo.width, photo.height))
-        decodeShrinking(start) { decodePhoto(photoFile(context, photo), it) }
-            .also { if (it == null) unreadable += photo }
-    }
+        bitmapOf = notingUnreadable(unreadable) { photo ->
+            // Never more than the photo has: past that every size is the same whole photo again.
+            val start = min(needed[photo] ?: max(width, height), max(photo.width, photo.height))
+            decodeShrinking(start) { decodePhoto(photoFile(context, photo), it) }
+        },
+    )
     if (unreadable.isNotEmpty()) {
         bitmap.recycle()
         return Rendered.Unreadable(unreadable.size)
     }
     return Rendered.Done(bitmap)
+}
+
+/**
+ * [decode] for a render, noting in [unreadable] each photo it could not give
+ * the first time it was asked for — when its cell is drawn. The blend asks
+ * again for the bands past the cell; a failure then costs a fade, not the
+ * photo, so it does not make the photo unreadable.
+ */
+internal fun <T : Any> notingUnreadable(unreadable: MutableSet<Photo>, decode: (Photo) -> T?): (Photo) -> T? {
+    val asked = HashSet<Photo>()
+    return { photo ->
+        val first = asked.add(photo)
+        decode(photo).also { if (it == null && first) unreadable += photo }
+    }
 }
 
 /**
