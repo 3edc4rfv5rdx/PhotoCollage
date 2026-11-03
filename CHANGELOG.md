@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- I: 24-ToLocalUpdates.sh publishes the newest build of every project to the local update server
 - N: Diagonally in the cell tools cuts a cell with a slanting line, a photo there going into both halves
 - N: A tap on a gap shows a dot on each end of its cut, and a dot dragged tilts the cut, as far as corner to corner
 ## v0.4.63 (2026-11-03)
