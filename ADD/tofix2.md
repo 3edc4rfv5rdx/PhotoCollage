@@ -238,7 +238,7 @@ the typed file name, the SAF tree URI and its grant.
   generic message; no new permission.
 - **Tests to add:** none on the JVM; device check by deleting the folder.
 
-### 7. P3 — README does not mention Blend
+### 7. P3 [FIXED c7ca9c8] — README does not mention Blend
 
 - **Affected components:** `README.md` Features: "**Look**: the gap's width,
   rounded corners, and the background colour." and "**Tools**: layout, format,
