@@ -186,7 +186,7 @@ the typed file name, the SAF tree URI and its grant.
   fake: with blend on, each photo is requested once (or the second request's
   null does not mark it unreadable).
 
-### 5. P3 — Until the draft is read at start, the editor thinks the collage differs from the draft
+### 5. P3 [FIXED ff287c8] — Until the draft is read at start, the editor thinks the collage differs from the draft
 
 - **Affected components:** `CollageViewModel.init` (`state.draft` is null until
   the `viewModelScope.launch { readCollage(draftFile) }` completes),
