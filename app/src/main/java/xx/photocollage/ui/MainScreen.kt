@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
@@ -232,6 +233,14 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                     adjust != Adjust.NONE -> {
                         HorizontalDivider()
                         AdjustRow(adjust, state, vm, onClose = { adjust = Adjust.NONE })
+                    }
+                    // Nothing else wants the room: the collage is put aside as the draft from here,
+                    // apart from the one kept by itself between starts.
+                    !state.collage.isEmpty -> Box(
+                        Modifier.fillMaxWidth().height(BOTTOM_PANEL_HEIGHT),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Button(onClick = vm::saveDraft) { Text(stringResource(R.string.save_draft)) }
                     }
                 }
             }

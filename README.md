@@ -43,7 +43,7 @@ save or share.**
 - **Kept**: the collage being edited is there again at the next start, even
   after the system closed the app; a new collage — from the menu or photos
   shared in — asks first, and can save the old one as the draft.
-- **Draft**: save the collage by hand (⋮) and open it again later; the app
+- **Draft**: save the collage by hand (under it, or ⋮) and open it again later; the app
   keeps its own copy of every photo in it.
 - English, Russian and Ukrainian; light and dark themes with accent colours.
 

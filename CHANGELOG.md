@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- F: Save draft is back under the collage
 - F: The gap, corner and blend sliders show how far along they are as a percent
 - E: With no gap, no hairline of the background shows between square-cornered cells
 - F: New collage leaves an empty collage with its Choose photos button instead of opening the picker
