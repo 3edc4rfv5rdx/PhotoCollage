@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- E: A save or share that fails in the system ends with a message instead of closing the app
 - E: The saved message names the file as the system numbered it when the name was taken
 - E: An undo in the middle of a drag no longer fills the history with a step for every frame of the rest of it
 - E: A narrow cell can be tapped and its photo moved, and a cut, a dragged border or the gap no longer shrinks a cell to nothing
