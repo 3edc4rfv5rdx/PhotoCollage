@@ -44,6 +44,8 @@ data class EditorState(
     /** Photos being copied in or a collage being drawn: the editor waits. */
     val busy: Boolean = false,
     val hasDraft: Boolean = false,
+    /** What the draft file holds as far as this editor knows; null while unknown or when there is none. */
+    val draft: Collage? = null,
     /** Photos shared from another app while the collage holds work: they wait for the user to say whether to start anew. */
     val pendingShare: List<Uri>? = null,
 )
@@ -81,9 +83,6 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     private val context get() = getApplication<Application>()
 
-    /** What the draft file holds as far as this editor knows; null while unknown or when there is none. */
-    private var draftCollage: Collage? = null
-
     /** The collage left off at, opened at the start; its photos outlive the clean-up. */
     private val leftOff: Collage?
 
@@ -99,7 +98,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val draft = withContext(Dispatchers.IO) { readCollage(draftFile(context)) }
             // A draft saved meanwhile is newer than the one read.
-            if (draftCollage == null) draftCollage = draft
+            if (_state.value.draft == null) _state.value = _state.value.copy(draft = draft)
             withContext(Dispatchers.IO) { photoLock.withLock { cleanUpOnce() } }
         }
     }
@@ -304,7 +303,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Whether starting a new collage would lose work, so the user is asked first. */
-    fun newCollageLosesWork(): Boolean = history.current.hasWorkBeyond(draftCollage)
+    fun newCollageLosesWork(): Boolean = history.current.hasWorkBeyond(_state.value.draft)
 
     /**
      * Photos shared from another app: a new collage of them, at once if the
@@ -456,10 +455,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun writeDraft(collage: Collage): Boolean {
         val text = collage.toJson()
         val ok = withContext(Dispatchers.IO) { runCatching { writeAtomically(draftFile(context), text) }.isSuccess }
-        if (ok) {
-            draftCollage = collage
-            _state.value = _state.value.copy(hasDraft = true)
-        }
+        if (ok) _state.value = _state.value.copy(hasDraft = true, draft = collage)
         say(Notice(if (ok) R.string.draft_saved else R.string.draft_save_failed))
         return ok
     }
@@ -471,7 +467,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
             if (collage == null) {
                 say(Notice(R.string.draft_open_failed))
             } else {
-                draftCollage = collage
+                _state.value = _state.value.copy(draft = collage)
                 push(collage)
                 _state.value = _state.value.copy(selected = null, swapFrom = null)
             }

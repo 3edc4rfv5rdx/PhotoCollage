@@ -79,6 +79,7 @@ import xx.photocollage.MAX_CORNER
 import xx.photocollage.MAX_GAP
 import xx.photocollage.R
 import xx.photocollage.canSplit
+import xx.photocollage.hasWorkBeyond
 import java.text.NumberFormat
 
 private enum class Screen { EDITOR, SETTINGS }
@@ -240,7 +241,10 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                         Modifier.fillMaxWidth().height(BOTTOM_PANEL_HEIGHT),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Button(onClick = vm::saveDraft) { Text(stringResource(R.string.save_draft)) }
+                        // Off while the draft holds this very collage: nothing to save.
+                        Button(onClick = vm::saveDraft, enabled = state.collage.hasWorkBeyond(state.draft)) {
+                            Text(stringResource(R.string.save_draft))
+                        }
                     }
                 }
             }
@@ -374,7 +378,7 @@ private fun TopBar(
                     menu = false
                     vm.shareImage()
                 }
-                AppMenuItem(stringResource(R.string.save_draft), enabled = hasPhotos) {
+                AppMenuItem(stringResource(R.string.save_draft), enabled = state.collage.hasWorkBeyond(state.draft)) {
                     menu = false
                     vm.saveDraft()
                 }
