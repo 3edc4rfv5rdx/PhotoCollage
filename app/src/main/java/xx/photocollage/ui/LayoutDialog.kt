@@ -63,18 +63,25 @@ private val PREVIEW_HEIGHT = 96.dp
 /** The gap the previews are drawn with: wider than a collage's own, so the cells read at this size. */
 private const val PREVIEW_GAP = 0.05f
 
+/** The count a collage of one cell opens the dialog at, instead of 1, which offers nothing to pick. */
+private const val START_COUNT = 3
+
+/** The count the dialog opens at for a collage of [cells] cells; see [LayoutDialog]. */
+private fun startCount(cells: Int): Int = (if (cells == 1) START_COUNT else cells).coerceIn(TEMPLATE_COUNTS)
+
 /**
  * The ready-made layouts, by how many cells: a drop-down of counts, and under
  * it each layout for the count picked, drawn in the collage's own shape, the
  * cells in the inverse colour on the dialog's own background. The count
- * starts at the collage's own, so its photos all fit. Turn and Mirror, above
+ * starts at the collage's own, so its photos all fit — at [START_COUNT] for a
+ * collage of one cell, which has no layout to keep. Turn and Mirror, above
  * Cancel, turn every layout a quarter clockwise and mirror it left for right
  * — which is why no two layouts offered are one another turned or mirrored.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LayoutDialog(collage: Collage, onDismiss: () -> Unit, onPick: (Node) -> Unit) {
-    var count by rememberSaveable { mutableIntStateOf(collage.cellCount.coerceIn(TEMPLATE_COUNTS)) }
+    var count by rememberSaveable { mutableIntStateOf(startCount(collage.cellCount)) }
     // The cells in the inverse colour, dark on a light dialog and light on a dark one, the gaps the
     // dialog's own: the same on whatever background the collage has.
     val cellColor = MaterialTheme.colorScheme.inverseSurface.toArgb()
