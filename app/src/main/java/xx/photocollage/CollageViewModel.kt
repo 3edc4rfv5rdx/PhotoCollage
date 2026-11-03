@@ -146,18 +146,29 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Copies [uris] in, then hands the ones that could be read to [then] on the main thread. */
+    /**
+     * Copies [uris] in, then hands the ones that could be read to [then] on
+     * the main thread. Anything that goes wrong on the way counts them all as
+     * unread and leaves the editor free to use again, never a crash.
+     */
     private fun importing(uris: List<Uri>, then: (List<Photo>) -> Unit) {
         if (uris.isEmpty()) return
         setBusy(true)
         viewModelScope.launch {
-            val photos = withContext(Dispatchers.IO) {
-                photoLock.withLock {
-                    cleanUpOnce()
-                    uris.mapNotNull { importPhoto(context, it) }
+            val photos = try {
+                withContext(Dispatchers.IO) {
+                    photoLock.withLock {
+                        cleanUpOnce()
+                        uris.mapNotNull { importPhoto(context, it) }
+                    }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emptyList()
+            } finally {
+                setBusy(false)
             }
-            setBusy(false)
             if (photos.size < uris.size) say(Notice(R.string.photos_unreadable, listOf(uris.size - photos.size)))
             if (photos.isNotEmpty()) then(photos)
         }
