@@ -17,7 +17,7 @@ const val EMPTY_CELL_COLOR = 0xFFC8C8C8.toInt()
  * what was seen. [bitmapOf] gives each photo as far as it is loaded; a cell
  * whose photo is not is drawn empty. [onDrawn] gets each bitmap once it is
  * on the canvas, for a caller that decoded it for this drawing alone to let
- * it go before the next.
+ * it go before the next. An empty cell is filled with [emptyColor].
  */
 fun drawCollage(
     canvas: Canvas,
@@ -26,6 +26,7 @@ fun drawCollage(
     height: Float,
     layout: CollageLayout = layoutOf(collage, width, height),
     onDrawn: (Bitmap) -> Unit = {},
+    emptyColor: Int = EMPTY_CELL_COLOR,
     bitmapOf: (Photo) -> Bitmap?,
 ) {
     val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
@@ -43,7 +44,7 @@ fun drawCollage(
         val photo = leaf.photo
         val bitmap = photo?.let { bitmapOf(it.photo) }
         if (photo == null || bitmap == null) {
-            paint.color = EMPTY_CELL_COLOR
+            paint.color = emptyColor
             canvas.drawRoundRect(rect, radius, radius, paint)
             return@forEachIndexed
         }

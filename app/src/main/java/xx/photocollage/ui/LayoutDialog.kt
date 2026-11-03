@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,13 +60,16 @@ private const val PREVIEW_GAP = 0.05f
 
 /**
  * The ready-made layouts, by how many cells: a row of counts, and under it
- * each layout for the count picked, drawn in the collage's own shape and
- * colour. The count starts at the collage's own, so its photos all fit.
+ * each layout for the count picked, drawn in the collage's own shape on its
+ * background, the cells in the accent. The count starts at the collage's
+ * own, so its photos all fit.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LayoutDialog(collage: Collage, onDismiss: () -> Unit, onPick: (Node) -> Unit) {
     var count by rememberSaveable { mutableIntStateOf(collage.cellCount.coerceIn(TEMPLATE_COUNTS)) }
+    // The cells in the accent, so the layouts stand out on any background.
+    val cellColor = MaterialTheme.colorScheme.primary.toArgb()
     val options = remember(count) { templates(count) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -91,7 +95,7 @@ fun LayoutDialog(collage: Collage, onDismiss: () -> Unit, onPick: (Node) -> Unit
                                 .padding(2.dp),
                         ) {
                             drawIntoCanvas {
-                                drawCollage(it.nativeCanvas, preview, size.width, size.height) { null }
+                                drawCollage(it.nativeCanvas, preview, size.width, size.height, emptyColor = cellColor) { null }
                             }
                         }
                     }
