@@ -7,13 +7,16 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -36,6 +39,8 @@ data class EditorState(
     /** Photos being copied in or a collage being drawn: the editor waits. */
     val busy: Boolean = false,
     val hasDraft: Boolean = false,
+    /** Photos shared from another app while the collage holds work: they wait for the user to say whether to start anew. */
+    val pendingShare: List<Uri>? = null,
 )
 
 /** A line for the user, from a string resource and its arguments. */
@@ -45,6 +50,9 @@ data class Notice(@param:StringRes val text: Int, val args: List<Any> = emptyLis
 sealed interface EditorEvent {
     data class Say(val notice: Notice) : EditorEvent
     data class Share(val file: File) : EditorEvent
+
+    /** A new collage was started from the menu: the picker opens for its photos. */
+    data object PickPhotos : EditorEvent
 }
 
 class CollageViewModel(app: Application) : AndroidViewModel(app) {
@@ -66,12 +74,27 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     private val context get() = getApplication<Application>()
 
+    /** What the draft file holds as far as this editor knows; null while unknown or when there is none. */
+    private var draftCollage: Collage? = null
+
     init {
-        _state.value = _state.value.copy(hasDraft = draftFile(context).exists())
-        viewModelScope.launch(Dispatchers.IO) {
-            photoLock.withLock {
-                // Once per process: a second editor opened by Share runs beside the first.
-                if (cleaned.compareAndSet(false, true)) forgetPhotosExcept(context, draftPhotos())
+        // The collage left off at: the latest this process has written if any, as the file
+        // may not have caught up with it yet, else the file.
+        val sessionText = pendingSession.value ?: runCatching { sessionFile(context).readText() }.getOrNull()
+        val restored = sessionText?.let(::parseCollage)
+        if (restored != null) history.reset(restored)
+        _state.value = EditorState(collage = history.current, hasDraft = draftFile(context).exists())
+        loadPreviews(history.current)
+        startSessionWriter(sessionFile(context))
+        viewModelScope.launch {
+            val draft = withContext(Dispatchers.IO) { readCollage(draftFile(context)) }
+            // A draft saved meanwhile is newer than the one read.
+            if (draftCollage == null) draftCollage = draft
+            withContext(Dispatchers.IO) {
+                photoLock.withLock {
+                    // Once per process, keeping what the draft and the collage left off at name.
+                    if (cleaned.compareAndSet(false, true)) forgetPhotosExcept(context, keptPhotos(draft, restored))
+                }
             }
         }
     }
@@ -239,9 +262,50 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** An empty collage of the same shape and look; a step back brings the old one back. */
-    fun newCollage() {
+    private fun newCollage() {
         push(history.current.copy(root = Leaf()))
         _state.value = _state.value.copy(selected = null, swapFrom = null)
+    }
+
+    /** Whether starting a new collage would lose work, so the user is asked first. */
+    fun newCollageLosesWork(): Boolean = history.current.hasWorkBeyond(draftCollage)
+
+    /**
+     * Photos shared from another app: a new collage of them, at once if the
+     * one here holds no work, else once the user says so (see [startNew]).
+     */
+    fun receiveShared(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        if (newCollageLosesWork()) {
+            _state.value = _state.value.copy(pendingShare = uris)
+        } else {
+            newCollage()
+            addPhotos(uris)
+        }
+    }
+
+    /** The shared photos waiting on the question are not taken: the collage stays as it is. */
+    fun dropPendingShare() {
+        _state.value = _state.value.copy(pendingShare = null)
+    }
+
+    /**
+     * A new collage in place of this one, after saving this one as the
+     * draft when [saveFirst] — and not at all if that fails, the shared
+     * photos then still waiting on the question. It is made of those, or the
+     * picker opens for it.
+     */
+    fun startNew(saveFirst: Boolean) {
+        val shared = _state.value.pendingShare
+        _state.value = _state.value.copy(pendingShare = null)
+        viewModelScope.launch {
+            if (saveFirst && !writeDraft(history.current)) {
+                if (shared != null) _state.value = _state.value.copy(pendingShare = shared)
+                return@launch
+            }
+            newCollage()
+            if (shared != null) addPhotos(shared) else _events.tryEmit(EditorEvent.PickPhotos)
+        }
     }
 
     // ---------- Gestures ----------
@@ -304,11 +368,15 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         publish()
     }
 
-    /** The history's current value out to the screen, and its photos decoded. */
+    /**
+     * The history's current value out to the screen, and its photos decoded;
+     * kept to open again at the next start unless it is a value mid-gesture.
+     */
     private fun publish() {
         val collage = history.current
         _state.value = _state.value.copy(collage = collage, canUndo = history.canUndo, canRedo = history.canRedo)
         loadPreviews(collage)
+        if (!history.inGesture) pendingSession.value = collage.toJson()
     }
 
     private fun loadPreviews(collage: Collage) {
@@ -334,38 +402,45 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     // ---------- Draft ----------
 
     fun saveDraft() {
-        val text = history.current.toJson()
-        viewModelScope.launch {
-            val ok = withContext(Dispatchers.IO) { runCatching { writeAtomically(draftFile(context), text) }.isSuccess }
-            if (ok) _state.value = _state.value.copy(hasDraft = true)
-            say(Notice(if (ok) R.string.draft_saved else R.string.draft_save_failed))
+        val collage = history.current
+        viewModelScope.launch { writeDraft(collage) }
+    }
+
+    /** [collage] as the draft, said either way; whether it was written. */
+    private suspend fun writeDraft(collage: Collage): Boolean {
+        val text = collage.toJson()
+        val ok = withContext(Dispatchers.IO) { runCatching { writeAtomically(draftFile(context), text) }.isSuccess }
+        if (ok) {
+            draftCollage = collage
+            _state.value = _state.value.copy(hasDraft = true)
         }
+        say(Notice(if (ok) R.string.draft_saved else R.string.draft_save_failed))
+        return ok
     }
 
     /** The saved draft in place of the collage; a step back brings the collage back. */
     fun openDraft() {
         viewModelScope.launch {
-            val collage = withContext(Dispatchers.IO) { readDraft() }
+            val collage = withContext(Dispatchers.IO) { readCollage(draftFile(context)) }
             if (collage == null) {
                 say(Notice(R.string.draft_open_failed))
             } else {
+                draftCollage = collage
                 push(collage)
                 _state.value = _state.value.copy(selected = null, swapFrom = null)
             }
         }
     }
 
-    private fun readDraft(): Collage? {
-        val file = draftFile(context)
-        if (!file.exists()) return null
-        val dir = photoDir(context)
-        return runCatching { file.readText() }.getOrNull()?.let { text ->
-            collageFromJson(text) { File(dir, it).isFile }
-        }
-    }
+    /** The collage [file] holds — the draft or the one left off at — or null when there is none to read. */
+    private fun readCollage(file: File): Collage? =
+        runCatching { file.readText() }.getOrNull()?.let(::parseCollage)
 
-    /** The photo files the saved draft names, which a clean-up must keep. */
-    private fun draftPhotos(): Set<String> = readDraft()?.photos()?.mapTo(HashSet()) { it.file }.orEmpty()
+    /** The collage [text] holds, its photos whose copies are gone left out. */
+    private fun parseCollage(text: String): Collage? {
+        val dir = photoDir(context)
+        return collageFromJson(text) { File(dir, it).isFile }
+    }
 
     // ---------- Out ----------
 
@@ -421,5 +496,23 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
         /** Whether this process has cleaned up the photo copies yet. */
         val cleaned = AtomicBoolean(false)
+
+        /** The latest text of the collage being edited, for the session file; null until the first step. */
+        val pendingSession = MutableStateFlow<String?>(null)
+
+        /**
+         * Writes [pendingSession] out, the latest only if it changes faster than
+         * it is written. Outlives the view model, so a step taken just before the
+         * editor closes is still written.
+         */
+        private val sessionWriter = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val writerStarted = AtomicBoolean(false)
+
+        fun startSessionWriter(file: File) {
+            if (!writerStarted.compareAndSet(false, true)) return
+            sessionWriter.launch {
+                pendingSession.filterNotNull().collect { text -> runCatching { writeAtomically(file, text) } }
+            }
+        }
     }
 }

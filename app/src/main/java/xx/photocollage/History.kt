@@ -21,6 +21,17 @@ class History<T>(initial: T) {
     val canUndo: Boolean get() = back.isNotEmpty()
     val canRedo: Boolean get() = forward.isNotEmpty()
 
+    /** Whether a gesture is under way: [current] is then a value mid-gesture, not a step. */
+    val inGesture: Boolean get() = gestureStart != null
+
+    /** [value] as the start of editing: no steps back or forward, no gesture. */
+    fun reset(value: T) {
+        current = value
+        back.clear()
+        forward.clear()
+        gestureStart = null
+    }
+
     /** One whole step: [value] becomes current, the old one a step back. Nothing changes if it is the same. */
     fun push(value: T) {
         if (value == current) return

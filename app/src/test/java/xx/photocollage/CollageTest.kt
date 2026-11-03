@@ -145,4 +145,30 @@ class CollageTest {
         // The same shape again keeps the size picked for it.
         assertEquals(3840, collage.withAspect(Aspect.NINE_SIXTEEN).longSide)
     }
+
+    @Test
+    fun workBeyondTheDraftIsAPhotoTheDraftDoesNotHold() {
+        val work = threeCells()
+        assertTrue(work.hasWorkBeyond(null))
+        assertFalse(work.hasWorkBeyond(work))
+        assertTrue(work.mapPhoto(0) { it.turned() }.hasWorkBeyond(work))
+        // No photos, nothing to lose, draft or not.
+        assertFalse(Collage(root = Split(Dir.ROW, 0.5f, Leaf(), Leaf())).hasWorkBeyond(null))
+    }
+
+    @Test
+    fun aCollageReadBackFromItsTextIsNoWorkBeyondItself() {
+        // The draft and the collage left off at are compared after a trip through their files.
+        val tilted = threeCells().mapPhoto(0) { it.copy(zoom = 1.37f, centerX = 0.41f, angle = -12.3f) }
+        val read = collageFromJson(tilted.toJson()) { true }
+        assertFalse(tilted.hasWorkBeyond(read))
+    }
+
+    @Test
+    fun keptPhotosAreEveryPhotoAnyCollageNames() {
+        val draft = Collage(root = Leaf(CellPhoto(c)))
+        assertEquals(setOf("a.img", "b.img", "c.img"), keptPhotos(draft, threeCells()))
+        assertEquals(setOf("c.img"), keptPhotos(draft, null))
+        assertEquals(emptySet<String>(), keptPhotos(null, null))
+    }
 }

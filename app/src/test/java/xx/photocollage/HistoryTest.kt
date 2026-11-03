@@ -88,4 +88,23 @@ class HistoryTest {
         assertEquals(HISTORY_LIMIT, undone)
         assertEquals(10, h.current)
     }
+
+    @Test
+    fun resetStartsAfreshWithNoStepsAndNoGesture() {
+        val h = History(0)
+        h.push(1)
+        h.undo()
+        h.begin()
+        h.live(7)
+        assertTrue(h.inGesture)
+        h.reset(42)
+        assertEquals(42, h.current)
+        assertFalse(h.canUndo)
+        assertFalse(h.canRedo)
+        assertFalse(h.inGesture)
+        // No gesture is left open to fold the next change into.
+        h.live(43)
+        assertTrue(h.undo())
+        assertEquals(42, h.current)
+    }
 }

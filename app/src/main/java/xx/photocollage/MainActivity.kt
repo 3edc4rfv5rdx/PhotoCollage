@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
         // photos just shared from another app.
         if (shared.isEmpty()) Updater.checkOnStart(this, UPDATER_CONFIG)
         // Once: a recreated activity finds them in the collage already.
-        if (savedInstanceState == null) viewModel.addPhotos(shared)
+        if (savedInstanceState == null) viewModel.receiveShared(shared)
         applyWindowTheme()
 
         setContent {
@@ -67,6 +67,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /** Photos shared while the editor is already open: one editor, so one collage left off at. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        viewModel.receiveShared(sharedImages(intent))
     }
 
     /**

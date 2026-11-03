@@ -7,8 +7,9 @@ import java.io.File
 private const val DRAFT_VERSION = 1
 
 /**
- * The collage as the text of its draft. Photos are named, not held: their
- * copies stay in the app's photo folder, which keeps every one a draft names.
+ * The collage as the text of its draft, or of the session file it is left
+ * off at. Photos are named, not held: their copies stay in the app's photo
+ * folder, which keeps every one either file names.
  */
 fun Collage.toJson(): String = JSONObject()
     .put("version", DRAFT_VERSION)

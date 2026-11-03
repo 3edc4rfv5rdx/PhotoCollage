@@ -267,3 +267,13 @@ fun Collage.fillEmpty(from: Int, photos: List<Photo>): Pair<Collage, Int> {
 
 /** Every photo the collage shows, in cell order. */
 fun Collage.photos(): List<Photo> = leaves.mapNotNull { it.photo?.photo }
+
+/**
+ * Whether starting another collage in place of this one would lose work:
+ * it has photos and is not what the draft holds.
+ */
+fun Collage.hasWorkBeyond(draft: Collage?): Boolean = !isEmpty && this != draft
+
+/** The photo files any of [collages] names: the copies a clean-up must keep. */
+fun keptPhotos(vararg collages: Collage?): Set<String> =
+    collages.flatMapTo(HashSet()) { c -> c?.photos().orEmpty().map { it.file } }

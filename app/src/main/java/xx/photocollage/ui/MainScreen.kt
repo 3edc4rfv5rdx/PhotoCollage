@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
@@ -98,7 +97,7 @@ fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
 private enum class Adjust { NONE, GAP, CORNER, BACKGROUND }
 
 /** Which dialog is up. */
-private enum class Dialog { NONE, LAYOUT, FORMAT, SAVE, PROPERTIES }
+private enum class Dialog { NONE, LAYOUT, FORMAT, SAVE, PROPERTIES, NEW_COLLAGE }
 
 /** The collage's own settings, under the wrench while no cell is selected: two open a dialog, three a strip under the collage. */
 private enum class CollageTool(val icon: ImageVector, @param:StringRes val text: Int) {
@@ -163,6 +162,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
             when (event) {
                 is EditorEvent.Say -> Toast.makeText(context, noticeText(context, event.notice), Toast.LENGTH_SHORT).show()
                 is EditorEvent.Share -> shareImage(context, event.file)
+                EditorEvent.PickPhotos -> pick(0, PickMode.NEW)
             }
         }
     }
@@ -175,7 +175,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                 state,
                 vm,
                 onExit = onExit,
-                onNew = { pick(0, PickMode.NEW) },
+                onNew = { if (vm.newCollageLosesWork()) dialog = Dialog.NEW_COLLAGE else vm.startNew(saveFirst = false) },
                 onSave = { dialog = Dialog.SAVE },
                 onProperties = { dialog = Dialog.PROPERTIES },
                 onCellTool = { tool ->
@@ -230,13 +230,6 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                         HorizontalDivider()
                         AdjustRow(adjust, state, vm, onClose = { adjust = Adjust.NONE })
                     }
-                    // Nothing else wants the room: the draft is saved from here.
-                    !state.collage.isEmpty -> Box(
-                        Modifier.fillMaxWidth().height(BOTTOM_PANEL_HEIGHT),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Button(onClick = vm::saveDraft) { Text(stringResource(R.string.save_draft)) }
-                    }
                 }
             }
         }
@@ -271,7 +264,24 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
             vm.saveImage(it)
         }
         Dialog.PROPERTIES -> PropertiesDialog(state.collage, onDismiss = { dialog = Dialog.NONE })
-        Dialog.NONE -> Unit
+        Dialog.NEW_COLLAGE, Dialog.NONE -> Unit
+    }
+    // From the menu, or for photos shared over a collage that holds work.
+    if (dialog == Dialog.NEW_COLLAGE || state.pendingShare != null) {
+        NewCollageDialog(
+            onSaveAndStart = {
+                dialog = Dialog.NONE
+                vm.startNew(saveFirst = true)
+            },
+            onStart = {
+                dialog = Dialog.NONE
+                vm.startNew(saveFirst = false)
+            },
+            onDismiss = {
+                dialog = Dialog.NONE
+                vm.dropPendingShare()
+            },
+        )
     }
 }
 
@@ -337,7 +347,6 @@ private fun TopBar(
             AppMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 AppMenuItem(stringResource(R.string.new_collage)) {
                     menu = false
-                    vm.newCollage()
                     onNew()
                 }
                 AppMenuItem(stringResource(R.string.save_image), enabled = hasPhotos) {

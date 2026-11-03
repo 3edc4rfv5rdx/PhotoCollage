@@ -19,6 +19,9 @@ fun photoDir(context: Context): File = File(context.filesDir, "photos").apply { 
 /** The saved draft, beside the photo folder. */
 fun draftFile(context: Context): File = File(context.filesDir, "draft.json")
 
+/** The collage being edited, written after every step and opened again at the next start. */
+fun sessionFile(context: Context): File = File(context.filesDir, "current.json")
+
 /** The file a [Photo] names. */
 fun photoFile(context: Context, photo: Photo): File = File(photoDir(context), photo.file)
 
@@ -52,9 +55,10 @@ fun importPhoto(context: Context, uri: Uri): Photo? {
 }
 
 /**
- * Deletes every photo copy not in [keep]. Run once per process, before
- * anything is imported: the copies of an unsaved collage from an earlier
- * run are of no more use, and nothing of this run is there yet to lose.
+ * Deletes every photo copy not in [keep] — the draft's and the collage left
+ * off at. Run once per process, before anything is imported: the other
+ * copies of an earlier run are of no more use, and nothing of this run is
+ * there yet to lose.
  */
 fun forgetPhotosExcept(context: Context, keep: Set<String>) {
     photoDir(context).listFiles()?.forEach { if (it.name !in keep) it.delete() }

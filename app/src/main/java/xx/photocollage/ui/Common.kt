@@ -206,10 +206,17 @@ private val DIALOG_BUTTON_PADDING = PaddingValues(horizontal = 16.dp, vertical =
 
 /** A dialog's main button; [danger] paints it red, for a step that cannot be undone. */
 @Composable
-fun DialogConfirmButton(text: String, danger: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+fun DialogConfirmButton(
+    text: String,
+    danger: Boolean = false,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     Button(
         onClick = onClick,
         enabled = enabled,
+        modifier = modifier,
         contentPadding = DIALOG_BUTTON_PADDING,
         colors = if (danger) {
             ButtonDefaults.buttonColors(

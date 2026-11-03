@@ -29,6 +29,10 @@
     <string name="share">Share</string>
     <string name="save_draft">Save draft</string>
     <string name="open_draft">Open draft</string>
+    <string name="new_collage_question">Start a new collage</string>
+    <string name="new_collage_warning">The current collage will be gone</string>
+    <string name="save_draft_and_start">Save draft and start</string>
+    <string name="start_without_saving">Start without saving</string>
     <string name="cell_tools">Cell</string>
     <string name="collage_settings">Collage settings</string>
     <string name="layout">Layout</string>
