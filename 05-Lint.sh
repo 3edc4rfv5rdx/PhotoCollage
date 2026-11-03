@@ -44,5 +44,5 @@ print(f"\n{len(issues)} issue(s) — report written at {stamp}. "
       f"HTML: {sys.argv[1].replace('.xml', '.html')}")
 PY
 
-pause 3
+pause 5
 exit "${status:-0}"

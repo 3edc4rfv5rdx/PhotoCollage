@@ -67,5 +67,5 @@ PY
 # green having run nothing at all, and that must not read as tests passing.
 summary=$?
 
-pause 3
+pause 5
 exit "${status:-$summary}"

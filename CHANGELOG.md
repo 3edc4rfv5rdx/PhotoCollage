@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- I: The lint and test scripts hold their summary on screen for 5 seconds instead of 3
 - E: With rounded corners, the Blend fade goes round the corners instead of jutting past them
 - F: Photo info shows a path without the storage it lies on
 - N: The app's own picker shows the phone's photos folder by folder, as pictures or a list of names, several picked at once in order, with the system's picker under Other apps
