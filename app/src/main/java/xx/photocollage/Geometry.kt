@@ -65,6 +65,13 @@ class CollageLayout(
      */
     fun frameOf(index: Int): Box = cells[index].inset(-blend)
 
+    /**
+     * The room the cells take together, the gap round the edge left out: past
+     * it a cell has no neighbour for its photo to fade over.
+     */
+    val extent: Box
+        get() = Box(cells.minOf { it.left }, cells.minOf { it.top }, cells.maxOf { it.right }, cells.maxOf { it.bottom })
+
     /** The cell under ([x], [y]), or null for a gap. */
     fun cellAt(x: Float, y: Float): Int? = cells.indexOfFirst { it.contains(x, y) }.takeIf { it >= 0 }
 

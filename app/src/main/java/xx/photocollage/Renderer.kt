@@ -83,7 +83,7 @@ fun drawCollage(
         onDrawn(bitmap)
     }
     if (layout.blend <= 0f) return
-    val canvasBox = Box(0f, 0f, width, height)
+    val extent = layout.extent
     val mask = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
     collage.leaves.forEachIndexed { index, leaf ->
         val cell = layout.cells[index]
@@ -91,7 +91,7 @@ fun drawCollage(
         if (cell.width <= 0f || cell.height <= 0f) return@forEachIndexed
         val bitmap = bitmapOf(photo.photo) ?: return@forEachIndexed
         photoMatrix(photo, bitmap, layout.frameOf(index), matrix)
-        blendBands(cell, layout.blend, canvasBox).forEach { band ->
+        blendBands(cell, layout.blend, extent).forEach { band ->
             val area = RectF(band.box.left, band.box.top, band.box.right, band.box.bottom)
             val layer = canvas.saveLayer(area, null)
             canvas.clipRect(area)
@@ -121,16 +121,18 @@ internal data class BlendBand(val box: Box, val fromX: Float, val fromY: Float, 
 
 /**
  * The bands [blend] pixels wide past each edge of [cell], as far as they lie
- * on [canvas]: none past the canvas's own edge, where there is no neighbour.
+ * within [extent], the room the cells take together: none on a side that
+ * faces the collage's edge, where there is no neighbour — with a gap, a band
+ * there would lie in the margin round the cells.
  */
-internal fun blendBands(cell: Box, blend: Float, canvas: Box): List<BlendBand> = listOf(
+internal fun blendBands(cell: Box, blend: Float, extent: Box): List<BlendBand> = listOf(
     BlendBand(Box(cell.left - blend, cell.top, cell.left, cell.bottom), cell.left, 0f, cell.left - blend, 0f),
     BlendBand(Box(cell.right, cell.top, cell.right + blend, cell.bottom), cell.right, 0f, cell.right + blend, 0f),
     BlendBand(Box(cell.left, cell.top - blend, cell.right, cell.top), 0f, cell.top, 0f, cell.top - blend),
     BlendBand(Box(cell.left, cell.bottom, cell.right, cell.bottom + blend), 0f, cell.bottom, 0f, cell.bottom + blend),
 ).mapNotNull { band ->
     val b = band.box
-    val clipped = Box(max(b.left, canvas.left), max(b.top, canvas.top), min(b.right, canvas.right), min(b.bottom, canvas.bottom))
+    val clipped = Box(max(b.left, extent.left), max(b.top, extent.top), min(b.right, extent.right), min(b.bottom, extent.bottom))
     if (clipped.width <= 0f || clipped.height <= 0f) null else band.copy(box = clipped)
 }
 

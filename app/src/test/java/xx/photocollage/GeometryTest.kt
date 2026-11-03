@@ -223,4 +223,15 @@ class GeometryTest {
         // A cell in the middle has a band on every side.
         assertEquals(4, blendBands(Box(30f, 30f, 70f, 70f), 5f, canvas).size)
     }
+
+    @Test
+    fun withAGapNoBlendBandLiesInTheMarginRoundTheCells() {
+        // 100 wide, gap 10: 10 | 35 | 10 | 35 | 10 — the left cell's left edge is at 10, not 0.
+        val collage = Collage(root = Split(Dir.ROW, 0.5f, Leaf(), Leaf()), gap = 0.1f, blend = 0.05f, aspect = Aspect.SQUARE)
+        val layout = layoutOf(collage, 100f, 100f)
+        assertEquals(Box(10f, 10f, 90f, 90f), layout.extent)
+        // Only the side facing the other cell, across the gap.
+        val bands = blendBands(layout.cells[0], layout.blend, layout.extent)
+        assertEquals(listOf(Box(45f, 10f, 50f, 90f)), bands.map { it.box })
+    }
 }
