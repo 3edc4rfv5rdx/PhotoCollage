@@ -36,6 +36,7 @@ private fun cellJson(cell: CellPhoto): JSONObject = JSONObject()
     .put("file", cell.photo.file)
     .put("width", cell.photo.width)
     .put("height", cell.photo.height)
+    .put("source", cell.photo.source)
     .put("zoom", cell.zoom.toDouble())
     .put("centerX", cell.centerX.toDouble())
     .put("centerY", cell.centerY.toDouble())
@@ -82,7 +83,7 @@ private fun cellFrom(json: JSONObject, exists: (String) -> Boolean): CellPhoto? 
     val height = json.getInt("height")
     if (!isPhotoName(file) || width <= 0 || height <= 0 || !exists(file)) return null
     return CellPhoto(
-        photo = Photo(file, width, height),
+        photo = Photo(file, width, height, json.optString("source").takeIf { json.has("source") && it.isNotBlank() }),
         zoom = json.optDouble("zoom", 1.0).toFloat().coerceIn(1f, MAX_ZOOM),
         centerX = json.optDouble("centerX", 0.5).toFloat().coerceIn(0f, 1f),
         centerY = json.optDouble("centerY", 0.5).toFloat().coerceIn(0f, 1f),

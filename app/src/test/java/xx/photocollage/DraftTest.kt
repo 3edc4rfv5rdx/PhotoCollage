@@ -76,4 +76,13 @@ class DraftTest {
         val old = JSONObject(blended.toJson()).apply { remove("blend") }.toString()
         assertEquals(0f, collageFromJson(old) { true }!!.blend)
     }
+
+    @Test
+    fun aPhotosSourceReadsBackAndAnOldDraftHasNone() {
+        val known = Collage(root = Leaf(CellPhoto(Photo("a.img", 40, 30, source = "DCIM/Camera/IMG_0001.jpg"))))
+        assertEquals("DCIM/Camera/IMG_0001.jpg", collageFromJson(known.toJson()) { true }!!.photos().single().source)
+        val unknown = Collage(root = Leaf(CellPhoto(Photo("a.img", 40, 30))))
+        assertFalse(unknown.toJson().contains("\"source\""))
+        assertNull(collageFromJson(unknown.toJson()) { true }!!.photos().single().source)
+    }
 }

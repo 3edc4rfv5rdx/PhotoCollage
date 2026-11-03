@@ -123,9 +123,15 @@ data class Split(val dir: Dir, val ratio: Float, val first: Node, val second: No
 
 /**
  * A photo the app keeps a copy of: [file] is its name in the app's photo
- * folder, [width] and [height] its size upright — EXIF turn applied.
+ * folder, [width] and [height] its size upright — EXIF turn applied — and
+ * [source] where it came from: its folder and name where the app that gave it
+ * tells them, the name alone where it tells only that, null where neither or
+ * the photo came in before this was kept.
  */
-data class Photo(val file: String, val width: Int, val height: Int)
+data class Photo(val file: String, val width: Int, val height: Int, val source: String? = null) {
+    /** How many millions of pixels it has. */
+    val megapixels: Double get() = width.toDouble() * height / 1_000_000
+}
 
 /**
  * A photo as it sits in its cell. [zoom] is 1 when it just covers the cell,

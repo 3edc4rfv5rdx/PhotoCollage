@@ -21,7 +21,9 @@ save or share.**
 - **Borders**: drag a gap between cells to move it.
 - **Photo in its cell**: drag to move it, pinch to zoom, turn two fingers to
   tilt it to any angle, turn it a quarter at a time — which also straightens a
-  tilt — replace or clear it.
+  tilt — replace or clear it; Photo info says where it came from — folder and
+  name where the app that gave it tells them — and its size in pixels and
+  megapixels.
 - **Swap**: long-press a photo and drop it on another cell, or select a cell,
   tap Swap and tap the other one.
 - **Format**: portrait or landscape, the shape — 1:1, 4:5, 3:4, 2:3, 9:16 or

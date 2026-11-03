@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- N: Photo info in the cell tools shows where the photo came from, its size in pixels and its megapixels
 - F: A file shared in that is too large is said as too large, not as unreadable
 - F: A file shared in that is over 500 MB is not copied in but counted as unreadable
 - R: The draft is read and written by a draft store of its own, out of the editor

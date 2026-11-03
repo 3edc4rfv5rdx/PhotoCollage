@@ -91,4 +91,11 @@ class PhotosTest {
         assertFalse(copyAtMost(ByteArray(20_000).inputStream(), out, 10_000))
         assertTrue(out.size() <= 10_000)
     }
+
+    @Test
+    fun aSourceIsTheFolderAndTheName() {
+        assertEquals("DCIM/Camera/a.jpg", sourcePath("DCIM/Camera/", "a.jpg"))
+        assertEquals("DCIM/Camera/a.jpg", sourcePath("DCIM/Camera", "a.jpg"))
+        assertEquals("a.jpg", sourcePath("", "a.jpg"))
+    }
 }

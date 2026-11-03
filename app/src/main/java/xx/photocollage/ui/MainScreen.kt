@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.HideImage
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.RoundedCorner
 import androidx.compose.material.icons.filled.Save
@@ -100,7 +101,7 @@ fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
 private enum class Adjust { NONE, GAP, CORNER, BLEND }
 
 /** Which dialog is up. */
-private enum class Dialog { NONE, LAYOUT, FORMAT, BACKGROUND, SAVE, PROPERTIES, NEW_COLLAGE }
+private enum class Dialog { NONE, LAYOUT, FORMAT, BACKGROUND, SAVE, PROPERTIES, PHOTO_INFO, NEW_COLLAGE }
 
 /** The collage's own settings, under the wrench while no cell is selected: three open a dialog, three a strip under the collage. */
 private enum class CollageTool(val icon: ImageVector, @param:StringRes val text: Int) {
@@ -121,6 +122,7 @@ private enum class CellTool(val icon: ImageVector, @param:StringRes val text: In
     SPLIT_DOWN(Icons.Filled.ViewAgenda, R.string.split_down),
     CLEAR(Icons.Filled.HideImage, R.string.clear_photo),
     REMOVE(Icons.Filled.DeleteOutline, R.string.remove_cell),
+    INFO(Icons.Filled.Info, R.string.photo_info),
 }
 
 /** Whether [tool] can be used on the selected cell of [collage]: a photo to act on, room to cut, another cell. */
@@ -129,7 +131,7 @@ private fun CellTool.enabled(collage: Collage, cell: Int): Boolean {
     return when (this) {
         CellTool.REPLACE -> true
         CellTool.SWAP -> collage.cellCount > 1
-        CellTool.TURN, CellTool.CLEAR -> hasPhoto
+        CellTool.TURN, CellTool.CLEAR, CellTool.INFO -> hasPhoto
         CellTool.SPLIT_ACROSS -> collage.canSplit(cell, Dir.ROW)
         CellTool.SPLIT_DOWN -> collage.canSplit(cell, Dir.COLUMN)
         CellTool.REMOVE -> collage.cellCount > 1
@@ -193,6 +195,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                             CellTool.SPLIT_DOWN -> vm.splitSelected(Dir.COLUMN)
                             CellTool.CLEAR -> vm.clearSelected()
                             CellTool.REMOVE -> vm.removeSelected()
+                            CellTool.INFO -> dialog = Dialog.PHOTO_INFO
                         }
                     }
                 },
@@ -285,6 +288,10 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
             onDismiss = { dialog = Dialog.NONE },
         )
         Dialog.PROPERTIES -> PropertiesDialog(state.collage, onDismiss = { dialog = Dialog.NONE })
+        // Of the selected cell's photo; gone with it, should the cell be let go or emptied meanwhile.
+        Dialog.PHOTO_INFO -> state.selected?.let { state.collage.leaves.getOrNull(it)?.photo }?.let { cell ->
+            PhotoInfoDialog(cell.photo, onDismiss = { dialog = Dialog.NONE })
+        }
         Dialog.NEW_COLLAGE, Dialog.NONE -> Unit
     }
     // From the menu, or for photos shared over a collage that holds work.

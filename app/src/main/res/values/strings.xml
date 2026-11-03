@@ -41,6 +41,9 @@
     <string name="orientation">Orientation</string>
     <string name="preset">Preset</string>
     <string name="properties">Properties</string>
+    <string name="photo_info">Photo info</string>
+    <string name="megapixels">Megapixels</string>
+    <string name="photo_source">Source</string>
     <string name="cells">Cells</string>
     <string name="photos_count">Photos</string>
     <string name="file_name">File name</string>

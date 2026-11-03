@@ -41,6 +41,9 @@
     <string name="orientation">Орієнтація</string>
     <string name="preset">Пресет</string>
     <string name="properties">Властивості</string>
+    <string name="photo_info">Відомості про фото</string>
+    <string name="megapixels">Мегапікселі</string>
+    <string name="photo_source">Джерело</string>
     <string name="cells">Комірки</string>
     <string name="photos_count">Фото</string>
     <string name="file_name">Ім’я файлу</string>

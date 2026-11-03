@@ -37,11 +37,14 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.text.NumberFormat
 import xx.photocollage.Aspect
 import xx.photocollage.Collage
 import xx.photocollage.Node
+import xx.photocollage.Photo
 import xx.photocollage.Preset
 import xx.photocollage.R
 import xx.photocollage.TEMPLATE_COUNTS
@@ -197,7 +200,7 @@ fun FormatDialog(
                 )
                 DropdownRow(
                     label = stringResource(R.string.preset),
-                    value = collage.preset()?.label ?: NO_PRESET,
+                    value = collage.preset()?.label ?: NO_VALUE,
                     options = Preset.entries,
                     optionLabel = { it.label },
                     onPick = onPreset,
@@ -217,23 +220,58 @@ fun FormatDialog(
 /** What the collage is: its way round, shape, saved size, preset, and how many cells and photos it has. */
 @Composable
 fun PropertiesDialog(collage: Collage, onDismiss: () -> Unit) {
-    val rows = listOf(
-        stringResource(R.string.orientation) to stringResource(if (collage.landscape) R.string.landscape else R.string.portrait),
-        stringResource(R.string.shape) to collage.aspect.label(collage.landscape),
-        stringResource(R.string.size) to sizeText(collage.savedSize()),
-        stringResource(R.string.preset) to (collage.preset()?.label ?: NO_PRESET),
-        stringResource(R.string.cells) to collage.cellCount.toString(),
-        stringResource(R.string.photos_count) to collage.photos().size.toString(),
+    InfoDialog(
+        title = stringResource(R.string.properties),
+        rows = listOf(
+            stringResource(R.string.orientation) to stringResource(if (collage.landscape) R.string.landscape else R.string.portrait),
+            stringResource(R.string.shape) to collage.aspect.label(collage.landscape),
+            stringResource(R.string.size) to sizeText(collage.savedSize()),
+            stringResource(R.string.preset) to (collage.preset()?.label ?: NO_VALUE),
+            stringResource(R.string.cells) to collage.cellCount.toString(),
+            stringResource(R.string.photos_count) to collage.photos().size.toString(),
+        ),
+        onDismiss = onDismiss,
     )
+}
+
+/** What a photo is: where it came from, and its size upright, in pixels and in megapixels. */
+@Composable
+fun PhotoInfoDialog(photo: Photo, onDismiss: () -> Unit) {
+    val megapixels = remember(photo) {
+        // Tenths while they still tell photos apart, whole millions from ten up.
+        NumberFormat.getNumberInstance().apply { maximumFractionDigits = if (photo.megapixels < 10) 1 else 0 }
+            .format(photo.megapixels)
+    }
+    InfoDialog(
+        title = stringResource(R.string.photo_info),
+        rows = listOf(
+            stringResource(R.string.photo_source) to (photo.source ?: NO_VALUE),
+            stringResource(R.string.size) to sizeText(photo.width to photo.height),
+            stringResource(R.string.megapixels) to megapixels,
+        ),
+        onDismiss = onDismiss,
+    )
+}
+
+/** [rows] of a label and its value under [title], and Close. */
+@Composable
+private fun InfoDialog(title: String, rows: List<Pair<String, String>>, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.properties)) },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 rows.forEach { (label, value) ->
+                    // The label whole, the value in what is left at the right — a long file name wraps there.
                     Row {
-                        Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(end = 16.dp))
+                        Text(
+                            value,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }
@@ -242,8 +280,8 @@ fun PropertiesDialog(collage: Collage, onDismiss: () -> Unit) {
     )
 }
 
-/** What the preset field shows when the shape, way round and size make none. */
-private const val NO_PRESET = "—"
+/** What a field shows when there is nothing to show: no preset the format makes, nowhere a photo is known to have come from. */
+private const val NO_VALUE = "—"
 
 /** Every drop-down field the same width, wide enough for the longest preset's name. */
 private val DROPDOWN_WIDTH = 176.dp

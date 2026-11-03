@@ -5,6 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import android.provider.DocumentsContract
+import android.provider.MediaStore
+import android.provider.OpenableColumns
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.io.InputStream
@@ -68,6 +71,7 @@ fun importPhoto(context: Context, uri: Uri): Imported {
                 file = name,
                 width = if (sideways) bounds.outHeight else bounds.outWidth,
                 height = if (sideways) bounds.outWidth else bounds.outHeight,
+                source = sourceOf(context, uri),
             ),
         )
     } catch (e: Exception) {
@@ -75,6 +79,41 @@ fun importPhoto(context: Context, uri: Uri): Imported {
         Imported.Unreadable
     }
 }
+
+/**
+ * Where the file at [uri] lies, as far as its provider tells: the folder and
+ * the name, or the name alone; null when it tells neither. A content URI
+ * carries no path, so the folder is had only from MediaStore's own column, or
+ * from the document id of the phone's storage or of Downloads.
+ */
+private fun sourceOf(context: Context, uri: Uri): String? {
+    documentPath(context, uri)?.let { return it }
+    val name = column(context, uri, OpenableColumns.DISPLAY_NAME) ?: return null
+    val folder = column(context, uri, MediaStore.MediaColumns.RELATIVE_PATH).orEmpty()
+    return sourcePath(folder, name)
+}
+
+/** One text column of what [uri] names, as its provider gives it; null when it has none or will not say. */
+private fun column(context: Context, uri: Uri, name: String): String? = runCatching {
+    context.contentResolver.query(uri, arrayOf(name), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0) else null
+    }
+}.getOrNull()?.takeIf { it.isNotBlank() }
+
+/** The path a document id of the phone's storage — "primary:DCIM/a.jpg" — or of Downloads — "raw:/storage/…" — holds; null for any other. */
+private fun documentPath(context: Context, uri: Uri): String? {
+    if (!DocumentsContract.isDocumentUri(context, uri)) return null
+    val id = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull() ?: return null
+    return when (uri.authority) {
+        "com.android.externalstorage.documents" -> id.substringAfter(':').takeIf { it.isNotBlank() }
+        "com.android.providers.downloads.documents" -> id.removePrefix("raw:").takeIf { id.startsWith("raw:") }
+        else -> null
+    }
+}
+
+/** [folder], as MediaStore gives it — "DCIM/Camera/" or empty — and [name] as one path. */
+internal fun sourcePath(folder: String, name: String): String =
+    if (folder.isBlank()) name else folder.trimEnd('/') + "/" + name
 
 /**
  * Copies [input] into [output], at most [limit] bytes: true when that was all
