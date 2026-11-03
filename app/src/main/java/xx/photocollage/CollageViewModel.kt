@@ -206,9 +206,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = _state.value.copy(selected = null, swapFrom = null)
     }
 
-    fun splitSelected(dir: Dir) = onSelected { c, i ->
-        if (c.cellCount < MAX_CELLS) c.copy(root = c.root.splitLeaf(i, dir)) else c
-    }
+    fun splitSelected(dir: Dir) = onSelected { c, i -> if (c.canSplit(i, dir)) c.withSplit(i, dir) else c }
 
     fun removeSelected() {
         val i = _state.value.selected ?: return
@@ -258,10 +256,13 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setBackground(color: Int) = push(history.current.copy(background = color))
 
-    /** The gap mid-drag of its slider; [endGesture] makes the drag one step. */
+    /** The gap mid-drag of its slider; [endGesture] makes the drag one step. It stops short of squeezing a cell too small. */
     fun setGap(gap: Float) {
         history.begin()
-        history.live(history.current.copy(gap = gap.coerceIn(0f, MAX_GAP)))
+        val now = history.current
+        val next = now.copy(gap = gap.coerceIn(0f, MAX_GAP))
+        if (!now.cellsStayBigEnough(next)) return
+        history.live(next)
         publish()
     }
 
@@ -322,8 +323,12 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     fun beginGesture() = history.begin()
 
+    /** A cut dragged to [ratio]; it stops short of making a cell too small to touch. */
     fun moveDivider(path: List<Boolean>, ratio: Float) {
-        history.live(history.current.copy(root = history.current.root.withRatio(path, ratio)))
+        val now = history.current
+        val next = now.copy(root = now.root.withRatio(path, ratio))
+        if (!now.cellsStayBigEnough(next)) return
+        history.live(next)
         publish()
     }
 

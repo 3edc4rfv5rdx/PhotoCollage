@@ -122,13 +122,20 @@ fun CollageCanvas(
                         if (divider != null) {
                             down.consume()
                             vm.beginGesture()
-                            try {
+                            // The cut moves once the finger has: a touch that never leaves the
+                            // slop is a tap on the cell under it, as the cut's reach overlaps it.
+                            var moved = false
+                            val released = try {
                                 drag(down.id) { change ->
-                                    vm.moveDivider(divider.path, divider.ratioAt(change.position.x, change.position.y))
+                                    if (!moved) moved = (change.position - start).getDistance() > viewConfiguration.touchSlop
+                                    if (moved) vm.moveDivider(divider.path, divider.ratioAt(change.position.x, change.position.y))
                                     change.consume()
                                 }
                             } finally {
                                 vm.endGesture()
+                            }
+                            if (released && !moved) {
+                                current.cellAt(start.x, start.y)?.let { cell -> if (vm.tapCell(cell)) pickFor(cell) }
                             }
                             return@awaitEachGesture
                         }

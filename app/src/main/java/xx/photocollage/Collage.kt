@@ -203,6 +203,13 @@ fun Node.withPhotos(photos: List<CellPhoto?>): Node {
 fun Node.splitLeaf(index: Int, dir: Dir): Node =
     mapLeaf(index) { Split(dir, 0.5f, Leaf(it.photo?.let(::refit)), Leaf()) }
 
+/** The collage with cell [index] cut in two along [dir]; see [splitLeaf]. */
+fun Collage.withSplit(index: Int, dir: Dir): Collage = copy(root = root.splitLeaf(index, dir))
+
+/** Whether cell [index] may be cut along [dir]: room for another cell, and both halves big enough to touch. */
+fun Collage.canSplit(index: Int, dir: Dir): Boolean =
+    cellCount < MAX_CELLS && cellsStayBigEnough(withSplit(index, dir))
+
 /**
  * This tree without its [index]th cell: the cut that held it is replaced by its
  * other part, which takes the room. Null when the cell is the only one.

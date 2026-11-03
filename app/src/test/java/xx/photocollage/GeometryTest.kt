@@ -1,7 +1,9 @@
 package xx.photocollage
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GeometryTest {
@@ -159,5 +161,43 @@ class GeometryTest {
     @Test
     fun aQuarterTurnStraightensATilt() {
         assertEquals(0f, CellPhoto(Photo("a", 1, 1), angle = 17f).turned().angle, eps)
+    }
+
+    /** Four columns of a quarter each, no gap: cells 25 wide on a canvas of 100. */
+    private fun fourColumns(): Collage {
+        val strip = Split(Dir.ROW, 1f / 4, Leaf(), Split(Dir.ROW, 1f / 3, Leaf(), Split(Dir.ROW, 0.5f, Leaf(), Leaf())))
+        return Collage(root = strip, gap = 0f, aspect = Aspect.SQUARE)
+    }
+
+    @Test
+    fun theMiddleOfANarrowCellIsTheCellsWhateverTheReach() {
+        val layout = layoutOf(fourColumns(), 100f, 100f)
+        // 12.5 from either cut, well within a reach of 20, but in the cell's middle half.
+        assertNull(layout.dividerAt(37.5f, 50f, 20f))
+        assertEquals(1, layout.cellAt(37.5f, 50f))
+        // By its edge the cut still takes the touch.
+        assertEquals(Dir.ROW, layout.dividerAt(27f, 50f, 20f)?.dir)
+    }
+
+    @Test
+    fun aCutThatWouldMakeACellTooSmallIsRefused() {
+        // A sixteenth of the side is still a cell; a 32nd is under MIN_CELL.
+        var collage = Collage(root = Leaf(), gap = 0f, aspect = Aspect.SQUARE)
+        repeat(4) { collage = collage.withSplit(0, Dir.ROW) }
+        assertEquals(1f / 16, collage.smallestCell(), eps)
+        assertFalse(collage.canSplit(0, Dir.ROW))
+        assertTrue(collage.canSplit(0, Dir.COLUMN))
+    }
+
+    @Test
+    fun aDragMayNotSqueezeACellUnderTheSmallestButMayWidenOneAlreadyThere() {
+        val half = Collage(root = Split(Dir.ROW, 0.5f, Leaf(), Leaf()), gap = 0f, aspect = Aspect.SQUARE)
+        // With no gap, the 8 % MIN_RATIO lets a cut go to still leaves a cell big enough.
+        assertTrue(half.cellsStayBigEnough(half.copy(root = half.root.withRatio(emptyList(), 0.08f))))
+        // A gap that leaves 2 % of a cell: no smaller, but wider is allowed.
+        val squeezed = half.copy(root = half.root.withRatio(emptyList(), 0.08f), gap = 0.06f)
+        assertTrue(squeezed.smallestCell() < MIN_CELL)
+        assertFalse(squeezed.cellsStayBigEnough(squeezed.copy(gap = 0.07f)))
+        assertTrue(squeezed.cellsStayBigEnough(squeezed.copy(root = squeezed.root.withRatio(emptyList(), 0.3f))))
     }
 }

@@ -30,6 +30,17 @@ data class Divider(val path: List<Boolean>, val dir: Dir, val span: Box, val at:
     fun ratioAt(x: Float, y: Float): Float =
         if (dir == Dir.ROW) (x - span.left) / span.width else (y - span.top) / span.height
 
+    /**
+     * How far from the line a touch inside [cell] still takes it: as far as
+     * the cell's edge on this side, and a quarter of the cell past it, so the
+     * middle half of every cell is the cell's however narrow it is.
+     */
+    fun reachInto(cell: Box): Float = if (dir == Dir.ROW) {
+        abs(at - if (cell.centerX < at) cell.right else cell.left) + cell.width / 4
+    } else {
+        abs(at - if (cell.centerY < at) cell.bottom else cell.top) + cell.height / 4
+    }
+
     /** How far ([x], [y]) is from the line, or null when it is beside the line's length rather than across it. */
     fun distance(x: Float, y: Float): Float? = if (dir == Dir.ROW) {
         if (y in span.top..span.bottom) abs(x - at) else null
@@ -56,12 +67,18 @@ class CollageLayout(
         dx * dx + dy * dy
     }
 
-    /** The cut within [reach] of ([x], [y]), the nearest if more are; null when none is. */
-    fun dividerAt(x: Float, y: Float, reach: Float): Divider? = dividers
-        .mapNotNull { d -> d.distance(x, y)?.let { d to it } }
-        .filter { it.second <= reach }
-        .minByOrNull { it.second }
-        ?.first
+    /**
+     * The cut within [reach] of ([x], [y]), the nearest if more are; null when
+     * none is. Inside a cell a cut reaches no further than [Divider.reachInto].
+     */
+    fun dividerAt(x: Float, y: Float, reach: Float): Divider? {
+        val inside = cellAt(x, y)?.let { cells[it] }
+        return dividers
+            .mapNotNull { d -> d.distance(x, y)?.let { d to it } }
+            .filter { (d, distance) -> distance <= reach && (inside == null || distance <= d.reachInto(inside)) }
+            .minByOrNull { it.second }
+            ?.first
+    }
 
     /** [cells][index]'s corner rounding: [corner], but never more than half its shorter side. */
     fun cornerOf(index: Int): Float = min(corner, min(cells[index].width, cells[index].height) / 2)
@@ -99,6 +116,26 @@ fun layoutOf(collage: Collage, width: Float, height: Float): CollageLayout {
 
     place(collage.root, Box(0f, 0f, width, height).inset(gap / 2), emptyList())
     return CollageLayout(cells, dividers, collage.corner * short)
+}
+
+/** The smallest a cut or a drag may make a cell either way, as a part of the canvas's shorter side. */
+const val MIN_CELL = 0.05f
+
+/** The narrowest side of any cell of [collage], as a part of the canvas's shorter side. */
+fun Collage.smallestCell(): Float {
+    val short = min(ratio, 1f)
+    return layoutOf(this, ratio, 1f).cells.minOf { min(it.width, it.height) } / short
+}
+
+/**
+ * Whether [next], a change of this collage's cells, leaves every cell big
+ * enough to see and touch: none under [MIN_CELL] — or, where one already is,
+ * none smaller than before, so a collage that came that way can still be
+ * worked on.
+ */
+fun Collage.cellsStayBigEnough(next: Collage): Boolean {
+    val after = next.smallestCell()
+    return after >= MIN_CELL || after >= smallestCell()
 }
 
 /** The size of the canvas of [ratio] that fits in [width] by [height], as large as it goes. */

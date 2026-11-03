@@ -74,10 +74,10 @@ import xx.photocollage.CollageViewModel
 import xx.photocollage.Dir
 import xx.photocollage.EditorEvent
 import xx.photocollage.EditorState
-import xx.photocollage.MAX_CELLS
 import xx.photocollage.MAX_CORNER
 import xx.photocollage.MAX_GAP
 import xx.photocollage.R
+import xx.photocollage.canSplit
 
 private enum class Screen { EDITOR, SETTINGS }
 
@@ -126,7 +126,8 @@ private fun CellTool.enabled(collage: Collage, cell: Int): Boolean {
         CellTool.REPLACE -> true
         CellTool.SWAP -> collage.cellCount > 1
         CellTool.TURN, CellTool.CLEAR -> hasPhoto
-        CellTool.SPLIT_ACROSS, CellTool.SPLIT_DOWN -> collage.cellCount < MAX_CELLS
+        CellTool.SPLIT_ACROSS -> collage.canSplit(cell, Dir.ROW)
+        CellTool.SPLIT_DOWN -> collage.canSplit(cell, Dir.COLUMN)
         CellTool.REMOVE -> collage.cellCount > 1
     }
 }
