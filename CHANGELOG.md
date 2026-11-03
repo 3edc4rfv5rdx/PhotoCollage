@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+## v0.3.59 (2026-11-03)
 - I: The lint and test scripts hold their summary on screen for 5 seconds instead of 3
 - E: With rounded corners, the Blend fade goes round the corners instead of jutting past them
 - F: Photo info shows a path without the storage it lies on
