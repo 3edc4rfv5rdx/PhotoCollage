@@ -293,6 +293,13 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         publish()
     }
 
+    /** How far photos fade over each other, mid-drag of its slider; [endGesture] makes the drag one step. */
+    fun setBlend(blend: Float) {
+        history.begin()
+        history.live(history.current.copy(blend = blend.coerceIn(0f, MAX_BLEND)))
+        publish()
+    }
+
     /** An empty collage of the same shape and look; a step back brings the old one back. */
     private fun newCollage() {
         push(history.current.copy(root = Leaf()))

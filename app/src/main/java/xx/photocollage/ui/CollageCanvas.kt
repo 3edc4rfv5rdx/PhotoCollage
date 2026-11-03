@@ -171,7 +171,9 @@ fun CollageCanvas(
                                 try {
                                     do {
                                         val event = awaitPointerEvent()
-                                        val box = current.cells.getOrNull(cell) ?: break
+                                        // The room the photo is framed in, as the drawing frames it.
+                                        if (cell !in current.cells.indices) break
+                                        val box = current.frameOf(cell)
                                         val centroid = event.calculateCentroid(useCurrent = true)
                                         val pan = event.calculatePan()
                                         val zoom = event.calculateZoom()

@@ -58,7 +58,7 @@ fun renderCollage(context: Context, collage: Collage): Rendered {
     val needed = HashMap<Photo, Int>()
     collage.leaves.forEachIndexed { index, leaf ->
         val cell = leaf.photo ?: return@forEachIndexed
-        val box = layout.cells[index]
+        val box = layout.frameOf(index)
         val (w, h) = cell.clamped(box.width, box.height).shownSize(box.width, box.height)
         needed[cell.photo] = max(needed[cell.photo] ?: 0, ceil(max(w, h)).toInt())
     }

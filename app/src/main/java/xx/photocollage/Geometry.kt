@@ -55,7 +55,16 @@ class CollageLayout(
     val dividers: List<Divider>,
     /** The rounding of each cell's corners, in pixels, before a small cell caps it. */
     val corner: Float,
+    /** How far, in pixels, each photo fades over its neighbours past its cell's edges; 0 for none. */
+    val blend: Float = 0f,
 ) {
+    /**
+     * The room [cells][index]'s photo is framed in: the cell, and as far
+     * past it as the photo fades over its neighbours, so the photo is there to
+     * fade. A gesture moves the photo within it as the drawing does.
+     */
+    fun frameOf(index: Int): Box = cells[index].inset(-blend)
+
     /** The cell under ([x], [y]), or null for a gap. */
     fun cellAt(x: Float, y: Float): Int? = cells.indexOfFirst { it.contains(x, y) }.takeIf { it >= 0 }
 
@@ -115,7 +124,7 @@ fun layoutOf(collage: Collage, width: Float, height: Float): CollageLayout {
     }
 
     place(collage.root, Box(0f, 0f, width, height).inset(gap / 2), emptyList())
-    return CollageLayout(cells, dividers, collage.corner * short)
+    return CollageLayout(cells, dividers, collage.corner * short, collage.blend * short)
 }
 
 /** The smallest a cut or a drag may make a cell either way, as a part of the canvas's shorter side. */

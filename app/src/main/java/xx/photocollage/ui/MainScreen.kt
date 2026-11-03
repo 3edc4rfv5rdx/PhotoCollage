@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.BorderOuter
@@ -70,6 +71,7 @@ import xx.photocollage.CollageViewModel
 import xx.photocollage.Dir
 import xx.photocollage.EditorEvent
 import xx.photocollage.EditorState
+import xx.photocollage.MAX_BLEND
 import xx.photocollage.MAX_CORNER
 import xx.photocollage.MAX_GAP
 import xx.photocollage.R
@@ -90,17 +92,18 @@ fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
 }
 
 /** Which of the collage's own settings is open under the canvas. */
-private enum class Adjust { NONE, GAP, CORNER }
+private enum class Adjust { NONE, GAP, CORNER, BLEND }
 
 /** Which dialog is up. */
 private enum class Dialog { NONE, LAYOUT, FORMAT, BACKGROUND, SAVE, PROPERTIES, NEW_COLLAGE }
 
-/** The collage's own settings, under the wrench while no cell is selected: three open a dialog, two a strip under the collage. */
+/** The collage's own settings, under the wrench while no cell is selected: three open a dialog, three a strip under the collage. */
 private enum class CollageTool(val icon: ImageVector, @param:StringRes val text: Int) {
     LAYOUT(Icons.Filled.Dashboard, R.string.layout),
     FORMAT(Icons.Filled.AspectRatio, R.string.format),
     GAP(Icons.Filled.BorderOuter, R.string.gap),
     CORNERS(Icons.Filled.RoundedCorner, R.string.corners),
+    BLEND(Icons.Filled.BlurOn, R.string.blend),
     BACKGROUND(Icons.Filled.Palette, R.string.background),
 }
 
@@ -195,6 +198,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                         CollageTool.FORMAT -> dialog = Dialog.FORMAT
                         CollageTool.GAP -> adjust = Adjust.GAP
                         CollageTool.CORNERS -> adjust = Adjust.CORNER
+                        CollageTool.BLEND -> adjust = Adjust.BLEND
                         CollageTool.BACKGROUND -> dialog = Dialog.BACKGROUND
                     }
                 },
@@ -396,7 +400,7 @@ private fun SwapBar(onCancel: () -> Unit) {
     }
 }
 
-/** The open one of the gap and corner settings, under the collage, with ✓ to put it away. */
+/** The open one of the gap, corner and blend settings, under the collage, with ✓ to put it away. */
 @Composable
 private fun AdjustRow(adjust: Adjust, state: EditorState, vm: CollageViewModel, onClose: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -419,6 +423,7 @@ private fun AdjustControl(adjust: Adjust, state: EditorState, vm: CollageViewMod
     when (adjust) {
         Adjust.GAP -> AdjustSlider(collage.gap, 0f..MAX_GAP, vm::setGap, vm::endGesture)
         Adjust.CORNER -> AdjustSlider(collage.corner, 0f..MAX_CORNER, vm::setCorner, vm::endGesture)
+        Adjust.BLEND -> AdjustSlider(collage.blend, 0f..MAX_BLEND, vm::setBlend, vm::endGesture)
         Adjust.NONE -> Unit
     }
 }

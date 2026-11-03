@@ -49,6 +49,7 @@
     <string name="landscape">Пейзаж</string>
     <string name="gap">Проміжок</string>
     <string name="corners">Кути</string>
+    <string name="blend">Розтушовка</string>
     <string name="background">Тло</string>
     <string name="add_photo">Додати фото</string>
     <string name="replace_photo">Замінити</string>

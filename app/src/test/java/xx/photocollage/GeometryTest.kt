@@ -200,4 +200,27 @@ class GeometryTest {
         assertFalse(squeezed.cellsStayBigEnough(squeezed.copy(gap = 0.07f)))
         assertTrue(squeezed.cellsStayBigEnough(squeezed.copy(root = squeezed.root.withRatio(emptyList(), 0.3f))))
     }
+
+    @Test
+    fun aPhotoIsFramedPastItsCellByTheBlend() {
+        val collage = Collage(root = Split(Dir.ROW, 0.5f, Leaf(), Leaf()), gap = 0f, blend = 0.05f, aspect = Aspect.SQUARE)
+        val layout = layoutOf(collage, 100f, 100f)
+        assertEquals(5f, layout.blend, eps)
+        assertEquals(Box(-5f, -5f, 55f, 105f), layout.frameOf(0))
+        // No blend, no room past the cell.
+        assertEquals(layout.cells[0], layoutOf(collage.copy(blend = 0f), 100f, 100f).frameOf(0))
+    }
+
+    @Test
+    fun blendBandsLieOnlyWhereANeighbourCanBe() {
+        val canvas = Box(0f, 0f, 100f, 100f)
+        // The left of two halves: only its right edge has a neighbour.
+        val bands = blendBands(Box(0f, 0f, 50f, 100f), 5f, canvas)
+        assertEquals(listOf(Box(50f, 0f, 55f, 100f)), bands.map { it.box })
+        // Fading from the cell's edge outwards.
+        assertEquals(50f, bands[0].fromX, eps)
+        assertEquals(55f, bands[0].toX, eps)
+        // A cell in the middle has a band on every side.
+        assertEquals(4, blendBands(Box(30f, 30f, 70f, 70f), 5f, canvas).size)
+    }
 }

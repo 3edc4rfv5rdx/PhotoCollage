@@ -65,4 +65,15 @@ class DraftTest {
         assertNull(collageFromJson("not json") { true })
         assertNull(collageFromJson("{}") { true })
     }
+
+    @Test
+    fun theBlendReadsBackAndIsHeldToItsRange() {
+        val blended = collage.copy(blend = 0.03f)
+        assertEquals(0.03f, collageFromJson(blended.toJson()) { true }!!.blend)
+        val wild = JSONObject(blended.toJson()).put("blend", 5.0).toString()
+        assertEquals(MAX_BLEND, collageFromJson(wild) { true }!!.blend)
+        // A draft from before the blend has none.
+        val old = JSONObject(blended.toJson()).apply { remove("blend") }.toString()
+        assertEquals(0f, collageFromJson(old) { true }!!.blend)
+    }
 }

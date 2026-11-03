@@ -17,6 +17,7 @@ fun Collage.toJson(): String = JSONObject()
     .put("landscape", landscape)
     .put("gap", gap.toDouble())
     .put("corner", corner.toDouble())
+    .put("blend", blend.toDouble())
     .put("background", background)
     .put("longSide", longSide)
     .put("root", nodeJson(root))
@@ -56,6 +57,7 @@ fun collageFromJson(text: String, exists: (String) -> Boolean): Collage? = runCa
         landscape = json.optBoolean("landscape", false),
         gap = json.optDouble("gap", DEFAULT_GAP.toDouble()).toFloat().coerceIn(0f, MAX_GAP),
         corner = json.optDouble("corner", 0.0).toFloat().coerceIn(0f, MAX_CORNER),
+        blend = json.optDouble("blend", 0.0).toFloat().coerceIn(0f, MAX_BLEND),
         background = json.optInt("background", DEFAULT_BACKGROUND),
     ).let { collage ->
         // A size the shape does not offer — another version's, or a hand edit — is the shape's own.

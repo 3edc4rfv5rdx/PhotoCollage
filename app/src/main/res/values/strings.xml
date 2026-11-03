@@ -49,6 +49,7 @@
     <string name="landscape">Landscape</string>
     <string name="gap">Gap</string>
     <string name="corners">Corners</string>
+    <string name="blend">Blend</string>
     <string name="background">Background</string>
     <string name="add_photo">Add photo</string>
     <string name="replace_photo">Replace</string>

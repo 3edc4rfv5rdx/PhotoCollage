@@ -49,6 +49,7 @@
     <string name="landscape">Пейзаж</string>
     <string name="gap">Зазор</string>
     <string name="corners">Углы</string>
+    <string name="blend">Растушёвка</string>
     <string name="background">Фон</string>
     <string name="add_photo">Добавить фото</string>
     <string name="replace_photo">Заменить</string>

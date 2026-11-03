@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- N: Blend in the wrench menu fades each photo into its neighbours across the seam instead of a hard line
 - F: The background dialog shows the colour in force as a pill beside its title and rings the pick in the square
 - F: The background is picked from a square of 144 colours in a dialog of its own instead of a strip of 12
 - F: The Layout dialog picks the photo count from a drop-down, 1 to 7, and offers no layout that is another turned or mirrored

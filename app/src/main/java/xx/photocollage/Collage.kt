@@ -17,6 +17,11 @@ data class Collage(
     val gap: Float = DEFAULT_GAP,
     /** The rounding of each cell's corners, as a part of the canvas's shorter side. */
     val corner: Float = 0f,
+    /**
+     * How far each photo fades over its neighbours past its cell's edges, as
+     * a part of the canvas's shorter side: a seam without a line. 0 for none.
+     */
+    val blend: Float = 0f,
     /** The colour behind the cells, which is also the colour of the gaps, as ARGB. */
     val background: Int = DEFAULT_BACKGROUND,
     /** The saved image's long side in pixels, one of [aspect]'s sizes; the shape gives the other. */
@@ -145,6 +150,7 @@ data class CellPhoto(
 const val DEFAULT_GAP = 0.015f
 const val MAX_GAP = 0.06f
 const val MAX_CORNER = 0.12f
+const val MAX_BLEND = 0.08f
 const val MAX_ZOOM = 6f
 
 /** The smallest part of a cut either side may be squeezed to. */
