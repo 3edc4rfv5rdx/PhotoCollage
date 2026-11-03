@@ -214,7 +214,7 @@ the typed file name, the SAF tree URI and its grant.
 - **Tests to add:** none practical on the JVM beyond `hasWorkBeyond`; check on a
   device with the steps above.
 
-### 6. P3 — "Could not save the image" when the folder picked in Settings has lost its grant or is gone
+### 6. P3 [FIXED ff5054a] — "Could not save the image" when the folder picked in Settings has lost its grant or is gone
 
 - **Affected components:** `Export.saveToFolder` (returns null on any exception
   from `getTreeDocumentId`/`createDocument`), `CollageViewModel.saveImage`
