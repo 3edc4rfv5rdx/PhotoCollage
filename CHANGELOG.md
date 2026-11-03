@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- E: With no gap, no hairline of the background shows between square-cornered cells
 - F: New collage leaves an empty collage with its Choose photos button instead of opening the picker
 - N: Blend in the wrench menu fades each photo into its neighbours across the seam instead of a hard line
 - F: The background dialog shows the colour in force as a pill beside its title and rings the pick in the square

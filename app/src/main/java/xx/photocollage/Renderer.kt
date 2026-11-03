@@ -47,6 +47,8 @@ fun drawCollage(
     canvas.drawRect(0f, 0f, width, height, paint)
     val path = Path()
     val matrix = Matrix()
+    // For a square cell's fill: no smoothing, see below.
+    val flat = Paint()
     collage.leaves.forEachIndexed { index, leaf ->
         val cell = layout.cells[index]
         if (cell.width <= 0f || cell.height <= 0f) return@forEachIndexed
@@ -54,15 +56,27 @@ fun drawCollage(
         val radius = layout.cornerOf(index)
         val photo = leaf.photo
         val bitmap = photo?.let { bitmapOf(it.photo) }
+        // Square corners are cut without smoothing: two cells meet on a fraction of a pixel,
+        // and two smoothed edges there would each cover it part way, the background
+        // showing through as a hairline even with no gap.
+        val square = radius <= 0f
         if (photo == null || bitmap == null) {
-            paint.color = emptyColor
-            canvas.drawRoundRect(rect, radius, radius, paint)
+            if (square) {
+                canvas.drawRect(rect, flat.apply { color = emptyColor })
+            } else {
+                paint.color = emptyColor
+                canvas.drawRoundRect(rect, radius, radius, paint)
+            }
             return@forEachIndexed
         }
         canvas.withSave {
-            path.reset()
-            path.addRoundRect(rect, radius, radius, Path.Direction.CW)
-            clipPath(path)
+            if (square) {
+                clipRect(rect)
+            } else {
+                path.reset()
+                path.addRoundRect(rect, radius, radius, Path.Direction.CW)
+                clipPath(path)
+            }
             photoMatrix(photo, bitmap, layout.frameOf(index), matrix)
             drawBitmap(bitmap, matrix, paint)
         }
