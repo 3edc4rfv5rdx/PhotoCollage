@@ -81,6 +81,9 @@ import xx.photocollage.MAX_GAP
 import xx.photocollage.R
 import xx.photocollage.canSplit
 import xx.photocollage.hasWorkBeyond
+import xx.photocollage.MediaAccess
+import xx.photocollage.mediaAccess
+import xx.photocollage.mediaPermissions
 import java.text.NumberFormat
 
 private enum class Screen { EDITOR, SETTINGS }
@@ -157,11 +160,29 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
     val pickOne = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { vm.replacePhoto(pickCell, it) }
     }
+    // GET_CONTENT, not the system photo picker: it lists every app that
+    // hands out images — PhotoBox among them — beside the phone's own.
+    fun systemPick(mode: PickMode) {
+        if (mode == PickMode.NEW) pickMany.launch(IMAGES) else pickOne.launch(IMAGES)
+    }
+    // The app's own picker while it is open, and for which way of picking.
+    var picking by rememberSaveable { mutableStateOf<PickMode?>(null) }
+    // The way of picking that waits on the answer to the media permission.
+    var awaitingAccess by rememberSaveable { mutableStateOf<PickMode?>(null) }
+    val askAccess = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        val mode = awaitingAccess ?: return@rememberLauncherForActivityResult
+        awaitingAccess = null
+        // No access, not even to some photos: the system's picker, as before there was one of our own.
+        if (mediaAccess(context) == MediaAccess.NONE) systemPick(mode) else picking = mode
+    }
     fun pick(cell: Int, mode: PickMode) {
         pickCell = cell
-        // GET_CONTENT, not the system photo picker: it lists every app that
-        // hands out images — PhotoBox among them — beside the phone's own.
-        if (mode == PickMode.NEW) pickMany.launch(IMAGES) else pickOne.launch(IMAGES)
+        if (mediaAccess(context) == MediaAccess.NONE) {
+            awaitingAccess = mode
+            askAccess.launch(mediaPermissions())
+        } else {
+            picking = mode
+        }
     }
 
     LaunchedEffect(vm) {
@@ -251,6 +272,20 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                     }
                 }
             }
+        }
+        picking?.let { mode ->
+            PhotoPicker(
+                multiple = mode == PickMode.NEW,
+                onPicked = { uris ->
+                    picking = null
+                    if (mode == PickMode.NEW) vm.addPhotos(uris, pickCell) else uris.firstOrNull()?.let { vm.replacePhoto(pickCell, it) }
+                },
+                onOtherApps = {
+                    picking = null
+                    systemPick(mode)
+                },
+                onDismiss = { picking = null },
+            )
         }
         if (state.busy) {
             // Over everything, and taking every touch, while photos come in or a collage is drawn.

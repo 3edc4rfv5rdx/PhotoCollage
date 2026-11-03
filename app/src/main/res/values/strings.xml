@@ -24,6 +24,12 @@
     <string name="undo">Undo</string>
     <string name="redo">Redo</string>
     <string name="choose_photos">Choose photos</string>
+    <string name="add">Add</string>
+    <string name="other_apps">Other apps</string>
+    <string name="allow_more_photos">Allow more photos</string>
+    <string name="no_photos">No photos</string>
+    <string name="show_as_list">List</string>
+    <string name="show_as_grid">Grid</string>
     <string name="new_collage">New collage</string>
     <string name="save_image">Save</string>
     <string name="share">Share</string>

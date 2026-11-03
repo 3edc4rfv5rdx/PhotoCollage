@@ -40,6 +40,7 @@ object AppSettings {
     private const val KEY_LANGUAGE = "language"
     private const val KEY_SAVE_FOLDER = "save_folder"
     private const val KEY_CANVAS_ROTATION = "canvas_rotation"
+    private const val KEY_PICKER_LIST = "picker_list"
 
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
@@ -55,12 +56,22 @@ object AppSettings {
     private val _canvasRotation = MutableStateFlow(CanvasRotation.SENSOR)
     val canvasRotation: StateFlow<CanvasRotation> = _canvasRotation.asStateFlow()
 
+    /** Whether the app's picker shows a folder as a list of names, not a grid of pictures. */
+    private val _pickerList = MutableStateFlow(false)
+    val pickerList: StateFlow<Boolean> = _pickerList.asStateFlow()
+
     fun load(context: Context) {
         val prefs = prefs(context)
         _themeMode.value = enumOr(prefs.getString(KEY_THEME, null), ThemeMode.SYSTEM)
         _accentIndex.value = prefs.getInt(KEY_ACCENT, 0).coerceIn(0, ACCENT_COUNT - 1)
         _saveFolder.value = prefs.getString(KEY_SAVE_FOLDER, null)?.toUri()
         _canvasRotation.value = enumOr(prefs.getString(KEY_CANVAS_ROTATION, null), CanvasRotation.SENSOR)
+        _pickerList.value = prefs.getBoolean(KEY_PICKER_LIST, false)
+    }
+
+    fun setPickerList(context: Context, list: Boolean) {
+        _pickerList.value = list
+        prefs(context).edit { putBoolean(KEY_PICKER_LIST, list) }
     }
 
     fun setThemeMode(context: Context, mode: ThemeMode) {

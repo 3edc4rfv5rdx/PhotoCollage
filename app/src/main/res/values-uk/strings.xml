@@ -24,6 +24,12 @@
     <string name="undo">Скасувати</string>
     <string name="redo">Повторити</string>
     <string name="choose_photos">Вибрати фото</string>
+    <string name="add">Додати</string>
+    <string name="other_apps">Інші застосунки</string>
+    <string name="allow_more_photos">Відкрити доступ до інших фото</string>
+    <string name="no_photos">Немає фото</string>
+    <string name="show_as_list">Списком</string>
+    <string name="show_as_grid">Плиткою</string>
     <string name="new_collage">Новий колаж</string>
     <string name="save_image">Зберегти</string>
     <string name="share">Поділитися</string>

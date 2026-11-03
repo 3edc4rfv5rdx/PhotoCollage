@@ -13,8 +13,11 @@ save or share.**
 
 ## Features
 
-- **Photos in**: from the system's picker — which lists every app that hands
-  out images, PhotoBox among them — or shared to PhotoCollage from another app.
+- **Photos in**: from the app's own picker, folder by folder — as pictures
+  with their names or as a list of names — several at once in the order
+  tapped; from the system's picker under Other apps — which lists
+  every app that hands out images, PhotoBox among them; or shared to
+  PhotoCollage from another app.
 - **Layouts**: ready-made ones for 1 to 7 photos, turned and mirrored in the
   Layout dialog; any cell can be cut in two, across or down, or removed, up
   to 16 cells.
@@ -51,9 +54,10 @@ save or share.**
   keeps its own copy of every photo in it.
 - English, Russian and Ukrainian; light and dark themes with accent colours.
 
-No permissions besides the updater's: photos come in through the picker or
-Share, saving into Pictures needs none, and another folder is granted once
-through the system's folder picker.
+One permission besides the updater's: reading photos, for the app's own
+picker — refused, the system's picker is used instead. Share needs none,
+saving into Pictures needs none, and another folder is granted once through
+the system's folder picker.
 
 ## Build
 
