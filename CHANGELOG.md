@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+## v0.5.73 (2026-11-03)
 - N: Export drafts and Import drafts in Settings carry every draft with its photos in one archive, its drafts chosen by picture and one already here coming in as a copy
 - F: Saved collages and the drafts' archives go into one app folder granted once through the system's folder picker, not into Pictures through the media library
 - F: The app's picker shows the folders granted to it as files and folders, and the app asks no permission to read storage
