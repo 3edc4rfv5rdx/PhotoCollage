@@ -162,7 +162,6 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
             when (event) {
                 is EditorEvent.Say -> Toast.makeText(context, noticeText(context, event.notice), Toast.LENGTH_SHORT).show()
                 is EditorEvent.Share -> shareImage(context, event.file)
-                EditorEvent.PickPhotos -> pick(0, PickMode.NEW)
             }
         }
     }

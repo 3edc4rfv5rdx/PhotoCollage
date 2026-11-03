@@ -55,9 +55,6 @@ data class Notice(@param:StringRes val text: Int, val args: List<Any> = emptyLis
 sealed interface EditorEvent {
     data class Say(val notice: Notice) : EditorEvent
     data class Share(val file: File) : EditorEvent
-
-    /** A new collage was started from the menu: the picker opens for its photos. */
-    data object PickPhotos : EditorEvent
 }
 
 class CollageViewModel(app: Application) : AndroidViewModel(app) {
@@ -331,8 +328,8 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * A new collage in place of this one, after saving this one as the
      * draft when [saveFirst] — and not at all if that fails, the shared
-     * photos then still waiting on the question. It is made of those, or the
-     * picker opens for it.
+     * photos then still waiting on the question. It is made of those, or left
+     * empty, its Choose photos button in the middle.
      */
     fun startNew(saveFirst: Boolean) {
         val shared = _state.value.pendingShare
@@ -343,7 +340,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
             newCollage()
-            if (shared != null) addPhotos(shared) else _events.tryEmit(EditorEvent.PickPhotos)
+            if (shared != null) addPhotos(shared)
         }
     }
 
