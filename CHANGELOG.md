@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- F: The Layout dialog draws its layouts' cells in the inverse colour on the dialog's own background, not the collage's
 - N: Drafts in the ⋮ menu shows every draft as a picture, a tap shows it large to open or delete
 - N: Save draft writes over the collage's own draft, and Save as new draft keeps a copy
 - F: A new collage or an opened draft starts with no step back to the collage before it

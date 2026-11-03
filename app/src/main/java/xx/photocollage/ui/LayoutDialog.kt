@@ -1,5 +1,6 @@
 package xx.photocollage.ui
 
+import android.graphics.Color
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -64,18 +65,19 @@ private const val PREVIEW_GAP = 0.05f
 
 /**
  * The ready-made layouts, by how many cells: a drop-down of counts, and under
- * it each layout for the count picked, drawn in the collage's own shape on its
- * background, the cells in the accent. The count starts at the collage's
- * own, so its photos all fit. Turn and Mirror, above Cancel, turn every
- * layout a quarter clockwise and mirror it left for right — which is why no
- * two layouts offered are one another turned or mirrored.
+ * it each layout for the count picked, drawn in the collage's own shape, the
+ * cells in the inverse colour on the dialog's own background. The count
+ * starts at the collage's own, so its photos all fit. Turn and Mirror, above
+ * Cancel, turn every layout a quarter clockwise and mirror it left for right
+ * — which is why no two layouts offered are one another turned or mirrored.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LayoutDialog(collage: Collage, onDismiss: () -> Unit, onPick: (Node) -> Unit) {
     var count by rememberSaveable { mutableIntStateOf(collage.cellCount.coerceIn(TEMPLATE_COUNTS)) }
-    // The cells in the accent, so the layouts stand out on any background.
-    val cellColor = MaterialTheme.colorScheme.primary.toArgb()
+    // The cells in the inverse colour, dark on a light dialog and light on a dark one, the gaps the
+    // dialog's own: the same on whatever background the collage has.
+    val cellColor = MaterialTheme.colorScheme.inverseSurface.toArgb()
     // Every layout is shown mirrored if [mirrored], then turned a quarter clockwise [turns] times.
     var turns by rememberSaveable { mutableIntStateOf(0) }
     var mirrored by rememberSaveable { mutableStateOf(false) }
@@ -99,7 +101,7 @@ fun LayoutDialog(collage: Collage, onDismiss: () -> Unit, onPick: (Node) -> Unit
                 )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     options.forEach { root ->
-                        val preview = collage.copy(root = root, gap = PREVIEW_GAP, corner = 0f)
+                        val preview = collage.copy(root = root, gap = PREVIEW_GAP, corner = 0f, background = Color.TRANSPARENT)
                         Canvas(
                             Modifier
                                 .height(PREVIEW_HEIGHT)
