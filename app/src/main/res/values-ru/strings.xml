@@ -64,6 +64,7 @@
     <string name="done">Готово</string>
     <string name="photos_left_out">Не поместилось фото</string>
     <string name="photos_unreadable">Не удалось прочитать фото</string>
+    <string name="photos_too_large">Слишком большие фото</string>
     <string name="photo_unreadable">Не удалось прочитать фото</string>
     <string name="draft_saved">Черновик сохранён</string>
     <string name="draft_save_failed">Не удалось сохранить черновик</string>

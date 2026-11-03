@@ -31,36 +31,48 @@ fun photoFile(context: Context, photo: Photo): File = File(photoDir(context), ph
 /** The most an import copies in: a stream longer than that is taken for no photo, before it fills the phone. */
 const val MAX_IMPORT_BYTES = 500L * 1024 * 1024
 
+/** What came of copying one photo in. */
+sealed interface Imported {
+    data class Done(val photo: Photo) : Imported
+
+    /** Over [MAX_IMPORT_BYTES]: stopped there, nothing kept. */
+    data object TooLarge : Imported
+
+    /** Not to be read, or no image. */
+    data object Unreadable : Imported
+}
+
 /**
- * Copies the image at [uri] into [photoDir] and reads its upright size.
- * Null when it cannot be read, is no image or is over [MAX_IMPORT_BYTES]; the
- * half-written copy is not left behind.
+ * Copies the image at [uri] into [photoDir] and reads its upright size. The
+ * half-written copy of one that fails is not left behind.
  */
-fun importPhoto(context: Context, uri: Uri): Photo? {
+fun importPhoto(context: Context, uri: Uri): Imported {
     val name = "${UUID.randomUUID()}.img"
     val file = File(photoDir(context), name)
     return try {
-        val input = context.contentResolver.openInputStream(uri) ?: return null
+        val input = context.contentResolver.openInputStream(uri) ?: return Imported.Unreadable
         val whole = input.use { src -> file.outputStream().use { copyAtMost(src, it, MAX_IMPORT_BYTES) } }
         if (!whole) {
             file.delete()
-            return null
+            return Imported.TooLarge
         }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
             file.delete()
-            return null
+            return Imported.Unreadable
         }
         val sideways = isSideways(orientationOf(file))
-        Photo(
-            file = name,
-            width = if (sideways) bounds.outHeight else bounds.outWidth,
-            height = if (sideways) bounds.outWidth else bounds.outHeight,
+        Imported.Done(
+            Photo(
+                file = name,
+                width = if (sideways) bounds.outHeight else bounds.outWidth,
+                height = if (sideways) bounds.outWidth else bounds.outHeight,
+            ),
         )
     } catch (e: Exception) {
         file.delete()
-        null
+        Imported.Unreadable
     }
 }
 

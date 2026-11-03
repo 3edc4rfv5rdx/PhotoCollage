@@ -64,6 +64,7 @@
     <string name="done">Done</string>
     <string name="photos_left_out">Photos that did not fit</string>
     <string name="photos_unreadable">Photos that could not be read</string>
+    <string name="photos_too_large">Photos too large to take</string>
     <string name="photo_unreadable">Could not read a photo</string>
     <string name="draft_saved">Draft saved</string>
     <string name="draft_save_failed">Could not save the draft</string>
