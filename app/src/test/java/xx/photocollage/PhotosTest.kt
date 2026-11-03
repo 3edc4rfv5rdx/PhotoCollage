@@ -70,4 +70,11 @@ class PhotosTest {
         assertNull(decodeShrinking(100) { size -> tried += size; null })
         assertEquals(listOf(100), tried)
     }
+
+    @Test
+    fun aFailedDecodeIsTriedAgainOnlyAfterTheWait() {
+        assertTrue(retryDue(null, 0L, 10_000L))
+        assertFalse(retryDue(1_000L, 5_000L, 10_000L))
+        assertTrue(retryDue(1_000L, 11_000L, 10_000L))
+    }
 }

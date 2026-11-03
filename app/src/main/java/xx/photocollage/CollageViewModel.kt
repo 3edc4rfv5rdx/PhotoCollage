@@ -3,6 +3,7 @@ package xx.photocollage
 import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.SystemClock
 import androidx.annotation.StringRes
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.AndroidViewModel
@@ -27,6 +28,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** The long side the editor decodes its photos at: sharp on any phone screen, small enough for nine at once. */
 private const val PREVIEW_LONG = 1440
+
+/** How long a preview that would not decode is left before a later change tries it again. */
+private const val PREVIEW_RETRY_MS = 10_000L
 
 /** What the editor shows besides the collage itself. */
 data class EditorState(
@@ -70,8 +74,13 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     val previews = mutableStateMapOf<String, Bitmap>()
     private val loading = mutableSetOf<String>()
 
-    /** Photos that would not decode: said once, not tried again on every change. */
-    private val failed = mutableSetOf<String>()
+    /**
+     * Photos whose preview would not decode, by when it last failed: tried
+     * again at a later change once [PREVIEW_RETRY_MS] has passed, as memory
+     * may have come free, but said only once.
+     */
+    private val failedAt = mutableMapOf<String, Long>()
+    private val saidUnreadable = mutableSetOf<String>()
 
     private val context get() = getApplication<Application>()
 
@@ -411,16 +420,22 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         val names = shown.mapTo(HashSet()) { it.file }
         // Let go of what the collage no longer shows; a step back decodes it again.
         previews.keys.retainAll(names)
-        shown.filter { it.file !in previews && it.file !in loading && it.file !in failed }.forEach { photo ->
+        val now = SystemClock.elapsedRealtime()
+        shown.filter {
+            it.file !in previews && it.file !in loading && retryDue(failedAt[it.file], now, PREVIEW_RETRY_MS)
+        }.forEach { photo ->
             loading += photo.file
             viewModelScope.launch {
-                val bitmap = withContext(Dispatchers.IO) { decodePhoto(photoFile(context, photo), PREVIEW_LONG) }
+                val bitmap = withContext(Dispatchers.IO) {
+                    decodeShrinking(PREVIEW_LONG) { decodePhoto(photoFile(context, photo), it) }
+                }
                 loading -= photo.file
                 if (bitmap == null) {
-                    failed += photo.file
-                    say(Notice(R.string.photo_unreadable))
-                } else if (history.current.photos().any { it.file == photo.file }) {
-                    previews[photo.file] = bitmap
+                    failedAt[photo.file] = SystemClock.elapsedRealtime()
+                    if (saidUnreadable.add(photo.file)) say(Notice(R.string.photo_unreadable))
+                } else {
+                    failedAt -= photo.file
+                    if (history.current.photos().any { it.file == photo.file }) previews[photo.file] = bitmap
                 }
             }
         }

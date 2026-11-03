@@ -107,6 +107,9 @@ internal fun <T : Any> decodeShrinking(minLong: Int, decode: (Int) -> T?): T? {
     }
 }
 
+/** Whether a decode that last failed at [failedAt], if ever, may be tried again at [now]: [wait] after the failure. */
+internal fun retryDue(failedAt: Long?, now: Long, wait: Long): Boolean = failedAt == null || now - failedAt >= wait
+
 /** The largest power of two [long] can be divided by and still be at least [minLong]. */
 internal fun sampleSize(long: Int, minLong: Int): Int {
     var sample = 1
