@@ -85,18 +85,23 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     private val session = sessionStore(app)
 
+    /** Whether the app keeps a copy of the photo by this file name: a draft or session naming one it lost leaves its cell empty. */
+    private val photoExists: (String) -> Boolean = photoDir(app).let { dir -> { name -> File(dir, name).isFile } }
+
+    private val draftStore = DraftStore(draftFile(app), photoExists)
+
     /** The collage left off at, opened at the start; its photos outlive the clean-up. */
     private val leftOff: Collage?
 
     init {
-        leftOff = session.latest()?.let(::parseCollage)
+        leftOff = session.latest()?.let { collageFromJson(it, photoExists) }
         leftOff?.let(history::reset)
         // Read here, not later: a Share at a cold start asks whether the collage is the
         // draft's straight after this, and an answer of "unknown" would be "no".
         _state.value = EditorState(
             collage = history.current,
-            hasDraft = draftFile(context).exists(),
-            draft = readCollage(draftFile(context)),
+            hasDraft = draftStore.present,
+            draft = draftStore.read(),
         )
         loadPreviews(history.current)
         viewModelScope.launch { withContext(Dispatchers.IO) { photoLock.withLock { cleanUpOnce() } } }
@@ -109,7 +114,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
      * does it, and never after a copy of this run is made.
      */
     private fun cleanUpOnce() =
-        forgetPhotosOnce(cleaned, photoDir(context)) { keptPhotos(readCollage(draftFile(context)), leftOff) }
+        forgetPhotosOnce(cleaned, photoDir(context)) { keptPhotos(draftStore.read(), leftOff) }
 
     // ---------- Photos in ----------
 
@@ -452,8 +457,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     /** [collage] as the draft, said either way; whether it was written. */
     private suspend fun writeDraft(collage: Collage): Boolean {
-        val text = collage.toJson()
-        val ok = withContext(Dispatchers.IO) { runCatching { writeAtomically(draftFile(context), text) }.isSuccess }
+        val ok = withContext(Dispatchers.IO) { draftStore.write(collage) }
         if (ok) _state.value = _state.value.copy(hasDraft = true, draft = collage)
         say(Notice(if (ok) R.string.draft_saved else R.string.draft_save_failed))
         return ok
@@ -462,7 +466,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     /** The saved draft in place of the collage; a step back brings the collage back. */
     fun openDraft() {
         viewModelScope.launch {
-            val collage = withContext(Dispatchers.IO) { readCollage(draftFile(context)) }
+            val collage = withContext(Dispatchers.IO) { draftStore.read() }
             if (collage == null) {
                 say(Notice(R.string.draft_open_failed))
             } else {
@@ -471,16 +475,6 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
                 _state.value = _state.value.copy(selected = null, swapFrom = null)
             }
         }
-    }
-
-    /** The collage [file] holds — the draft or the one left off at — or null when there is none to read. */
-    private fun readCollage(file: File): Collage? =
-        runCatching { file.readText() }.getOrNull()?.let(::parseCollage)
-
-    /** The collage [text] holds, its photos whose copies are gone left out. */
-    private fun parseCollage(text: String): Collage? {
-        val dir = photoDir(context)
-        return collageFromJson(text) { File(dir, it).isFile }
     }
 
     // ---------- Out ----------

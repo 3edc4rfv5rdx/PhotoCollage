@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- R: The draft is read and written by a draft store of its own, out of the editor
 - R: The collage kept between starts is written by a session store of its own, out of the editor
 - F: A save into a folder that is gone or no longer granted says the save folder is not available
 - E: With Blend on, a photo short of memory for its fade no longer stops the save

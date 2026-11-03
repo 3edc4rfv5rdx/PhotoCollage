@@ -98,6 +98,22 @@ private fun cellFrom(json: JSONObject, exists: (String) -> Boolean): CellPhoto? 
 fun isPhotoName(name: String): Boolean =
     name.isNotEmpty() && name.none { it == '/' || it == '\\' } && name != "." && name != ".."
 
+/**
+ * The one draft saved by hand, in [file]. A photo [photoExists] says is gone
+ * leaves its cell empty as the draft is read.
+ */
+class DraftStore(private val file: File, private val photoExists: (String) -> Boolean) {
+
+    /** Whether a draft was ever saved, readable or not. */
+    val present: Boolean get() = file.exists()
+
+    /** The collage the draft holds, or null when there is none or it cannot be read. */
+    fun read(): Collage? = runCatching { file.readText() }.getOrNull()?.let { collageFromJson(it, photoExists) }
+
+    /** [collage] as the draft, whole or not at all; whether it was written. */
+    fun write(collage: Collage): Boolean = runCatching { writeAtomically(file, collage.toJson()) }.isSuccess
+}
+
 /** Writes [text] to [file] whole or not at all: into a file beside it first, then moved over. */
 fun writeAtomically(file: File, text: String) {
     val temp = File(file.parentFile, "${file.name}.tmp")
