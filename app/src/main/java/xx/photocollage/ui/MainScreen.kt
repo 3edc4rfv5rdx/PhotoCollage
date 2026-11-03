@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material.icons.Icons
@@ -65,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import xx.photocollage.Collage
 import xx.photocollage.CollageViewModel
@@ -76,6 +78,7 @@ import xx.photocollage.MAX_CORNER
 import xx.photocollage.MAX_GAP
 import xx.photocollage.R
 import xx.photocollage.canSplit
+import java.text.NumberFormat
 
 private enum class Screen { EDITOR, SETTINGS }
 
@@ -428,9 +431,10 @@ private fun AdjustControl(adjust: Adjust, state: EditorState, vm: CollageViewMod
 }
 
 /**
- * A slider across the screen for one of the collage's settings. The system's
- * back swipe is kept off its whole width: at zero its thumb sits by the left
- * edge, where a drag would otherwise close the app.
+ * A slider across the screen for one of the collage's settings, with how far
+ * along its track it is beside it, as a percent in the language's own way.
+ * The system's back swipe is kept off its whole width: at zero its thumb sits
+ * by the left edge, where a drag would otherwise close the app.
  */
 @Composable
 private fun AdjustSlider(
@@ -439,11 +443,26 @@ private fun AdjustSlider(
     onChange: (Float) -> Unit,
     onDone: () -> Unit,
 ) {
-    Slider(
-        value = value,
-        onValueChange = onChange,
-        onValueChangeFinished = onDone,
-        valueRange = range,
-        modifier = Modifier.systemGestureExclusion().padding(horizontal = 24.dp),
-    )
+    val percent = remember { NumberFormat.getPercentInstance() }
+    val along = ((value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Slider(
+            value = value,
+            onValueChange = onChange,
+            onValueChangeFinished = onDone,
+            valueRange = range,
+            modifier = Modifier.weight(1f).systemGestureExclusion().padding(start = 24.dp, end = 8.dp),
+        )
+        // A fixed width, so the slider does not shift as the number grows a digit.
+        Text(
+            percent.format(along.toDouble()),
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            modifier = Modifier.width(PERCENT_WIDTH),
+        )
+    }
 }
+
+/** Room for "100 %" beside a slider. */
+private val PERCENT_WIDTH = 56.dp
