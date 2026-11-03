@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- E: A narrow cell can be tapped and its photo moved, and a cut, a dragged border or the gap no longer shrinks a cell to nothing
 - E: Photos shared into the app as it starts are no longer deleted by the start's clean-up
 - E: A saved or shared image never has an empty cell where a photo was: a photo short of memory is drawn smaller, and an unreadable one stops the save with a message
 - E: The collage being edited comes back at the next start, and a new collage asks before it replaces one that holds work
