@@ -253,7 +253,7 @@ the typed file name, the SAF tree URI and its grant.
   changes go in without one).
 - **Tests to add:** none.
 
-### 8. P3 (accepted) — An import copies the whole stream before learning it is no image
+### 8. P3 [FIXED 627ae25] — An import copies the whole stream before learning it is no image
 
 - **Affected components:** `Photos.importPhoto`
   (`input.use { src -> file.outputStream().use { src.copyTo(it) } }`, then
