@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- R: The dialog button's modifier is its first optional parameter, as lint asks
 - E: A photo that once failed to show in the editor is tried again instead of staying grey for the session
 - E: A photo turned a quarter stays turned when another layout is picked
 - E: A photo import that fails on the way ends with a message and never leaves the editor waiting

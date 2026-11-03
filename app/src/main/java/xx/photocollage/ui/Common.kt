@@ -208,9 +208,9 @@ private val DIALOG_BUTTON_PADDING = PaddingValues(horizontal = 16.dp, vertical =
 @Composable
 fun DialogConfirmButton(
     text: String,
+    modifier: Modifier = Modifier,
     danger: Boolean = false,
     enabled: Boolean = true,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     Button(
