@@ -6,7 +6,10 @@ const val HISTORY_LIMIT = 100
 /**
  * The value being edited with its steps back and forward. A gesture that
  * changes it many times a second goes in as one step: [begin] when it
- * starts, [live] as it goes, [end] when it is let go.
+ * starts, [live] as it goes, [end] when it is let go. Anything else that
+ * ends the gesture first — an undo, a step pushed meanwhile, another gesture
+ * let go — leaves the rest of it, if it goes on, as one step more, never a
+ * step a frame.
  */
 class History<T>(initial: T) {
     var current: T = initial
@@ -32,9 +35,14 @@ class History<T>(initial: T) {
         gestureStart = null
     }
 
-    /** One whole step: [value] becomes current, the old one a step back. Nothing changes if it is the same. */
+    /**
+     * One whole step: [value] becomes current, the old one a step back.
+     * Nothing changes if it is the same. A gesture under way is made its own
+     * step first, so the steps stay in the order they were taken.
+     */
     fun push(value: T) {
         if (value == current) return
+        end()
         record(current)
         current = value
     }
@@ -43,9 +51,10 @@ class History<T>(initial: T) {
         if (gestureStart == null) gestureStart = current
     }
 
-    /** The value mid-gesture: shown, but no step yet. Outside a gesture it is a whole step. */
+    /** The value mid-gesture: shown, but no step yet. Outside one it begins one, which [end] makes a step. */
     fun live(value: T) {
-        if (gestureStart == null) push(value) else current = value
+        begin()
+        current = value
     }
 
     /** The gesture as one step, from where it began; none if it came back where it started. */

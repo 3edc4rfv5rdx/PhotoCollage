@@ -73,10 +73,52 @@ class HistoryTest {
     }
 
     @Test
-    fun liveOutsideAGestureIsAWholeStep() {
+    fun liveOutsideAGestureBeginsOne() {
         val h = History(0)
         h.live(1)
-        assertTrue(h.canUndo)
+        h.live(2)
+        assertTrue(h.inGesture)
+        h.end()
+        assertEquals(2, h.current)
+        assertTrue(h.undo())
+        assertEquals(0, h.current)
+        assertFalse(h.canUndo)
+    }
+
+    @Test
+    fun aGestureGoingOnAfterAnUndoIsOneStepMoreNotOneAFrame() {
+        val h = History(0)
+        h.push(1)
+        h.begin()
+        h.live(2)
+        // Undo with the other hand: the gesture so far is a step, and it is undone.
+        assertTrue(h.undo())
+        assertEquals(1, h.current)
+        // The finger is still moving.
+        h.live(3)
+        h.live(4)
+        h.live(5)
+        h.end()
+        assertEquals(5, h.current)
+        assertTrue(h.undo())
+        assertEquals(1, h.current)
+        assertTrue(h.undo())
+        assertEquals(0, h.current)
+        assertFalse(h.canUndo)
+    }
+
+    @Test
+    fun aStepPushedMidGestureComesAfterIt() {
+        val h = History(0)
+        h.begin()
+        h.live(7)
+        h.push(9)
+        h.end()
+        assertTrue(h.undo())
+        assertEquals(7, h.current)
+        assertTrue(h.undo())
+        assertEquals(0, h.current)
+        assertFalse(h.canUndo)
     }
 
     @Test
