@@ -9,16 +9,13 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -86,14 +83,13 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     private val context get() = getApplication<Application>()
 
+    private val session = sessionStore(app)
+
     /** The collage left off at, opened at the start; its photos outlive the clean-up. */
     private val leftOff: Collage?
 
     init {
-        // The latest this process has written if any, as the file may not have caught up
-        // with it yet, else the file.
-        val sessionText = pendingSession.value ?: runCatching { sessionFile(context).readText() }.getOrNull()
-        leftOff = sessionText?.let(::parseCollage)
+        leftOff = session.latest()?.let(::parseCollage)
         leftOff?.let(history::reset)
         // Read here, not later: a Share at a cold start asks whether the collage is the
         // draft's straight after this, and an answer of "unknown" would be "no".
@@ -103,7 +99,6 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
             draft = readCollage(draftFile(context)),
         )
         loadPreviews(history.current)
-        startSessionWriter(sessionFile(context))
         viewModelScope.launch { withContext(Dispatchers.IO) { photoLock.withLock { cleanUpOnce() } } }
     }
 
@@ -419,7 +414,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         val collage = history.current
         _state.value = _state.value.copy(collage = collage, canUndo = history.canUndo, canRedo = history.canRedo)
         loadPreviews(collage)
-        if (!history.inGesture) pendingSession.value = collage.toJson()
+        if (!history.inGesture) session.keep(collage.toJson())
     }
 
     private fun loadPreviews(collage: Collage) {
@@ -565,24 +560,6 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
         /** Whether this process has cleaned up the photo copies yet. */
         val cleaned = AtomicBoolean(false)
-
-        /** The latest text of the collage being edited, for the session file; null until the first step. */
-        val pendingSession = MutableStateFlow<String?>(null)
-
-        /**
-         * Writes [pendingSession] out, the latest only if it changes faster than
-         * it is written. Outlives the view model, so a step taken just before the
-         * editor closes is still written.
-         */
-        private val sessionWriter = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        private val writerStarted = AtomicBoolean(false)
-
-        fun startSessionWriter(file: File) {
-            if (!writerStarted.compareAndSet(false, true)) return
-            sessionWriter.launch {
-                pendingSession.filterNotNull().collect { text -> runCatching { writeAtomically(file, text) } }
-            }
-        }
     }
 }
 
