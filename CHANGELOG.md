@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- E: With Blend on, a photo short of memory for its fade no longer stops the save
 - E: The editor waits until a save and photos coming in have both ended, not only the first of them
 - E: Photos shared in at a start no longer ask about a new collage when the draft already holds the one there
 - E: With a gap, Blend no longer fades photos into the margin round the collage

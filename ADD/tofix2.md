@@ -156,7 +156,7 @@ the typed file name, the SAF tree URI and its grant.
 - **Tests to add:** `GeometryTest`: a cell inset by a gap from the canvas edge
   gets no band on that side; a cell in the middle still gets four.
 
-### 4. P3 — With Blend on, a save decodes every photo twice, and a failure in the second pass discards a render that already drew it
+### 4. P3 [FIXED 94cf66d] — With Blend on, a save decodes every photo twice, and a failure in the second pass discards a render that already drew it
 
 - **Affected components:** `Renderer.drawCollage` (second pass calls
   `bitmapOf(photo.photo)` again, KDoc says so), `Export.renderCollage`
@@ -185,6 +185,11 @@ the typed file name, the SAF tree URI and its grant.
 - **Tests to add:** a JVM test of the render loop with a counting `bitmapOf`
   fake: with blend on, each photo is requested once (or the second request's
   null does not mark it unreadable).
+- **Accepted remainder:** the fix takes the second option — a band's failed
+  decode no longer fails the save (`notingUnreadable` in `Export.kt`). Each
+  photo is still decoded twice with Blend on: drawing the bands from the cell's
+  own bitmap would need `drawCollage`'s two passes reordered. Such a band is
+  left out of the saved image, a fade the editor showed.
 
 ### 5. P3 [FIXED ff287c8] — Until the draft is read at start, the editor thinks the collage differs from the draft
 
