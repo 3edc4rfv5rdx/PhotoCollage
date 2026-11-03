@@ -1,5 +1,6 @@
 package xx.photocollage.ui
 
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -32,19 +33,25 @@ import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.BorderOuter
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FlipToBack
+import androidx.compose.material.icons.filled.FlipToFront
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.HideImage
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.RoundedCorner
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.ViewColumn
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -79,6 +86,7 @@ import xx.photocollage.EditorState
 import xx.photocollage.MAX_BLEND
 import xx.photocollage.MAX_CORNER
 import xx.photocollage.MAX_GAP
+import xx.photocollage.MAX_OVERLAYS
 import xx.photocollage.R
 import xx.photocollage.canSlant
 import xx.photocollage.canSplit
@@ -113,11 +121,17 @@ fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
 private enum class Adjust { NONE, GAP, CORNER, BLEND }
 
 /** Which dialog is up. */
-private enum class Dialog { NONE, LAYOUT, FORMAT, BACKGROUND, SAVE, PROPERTIES, PHOTO_INFO, NEW_COLLAGE }
+private enum class Dialog { NONE, LAYOUT, FORMAT, BACKGROUND, SAVE, PROPERTIES, PHOTO_INFO, NEW_COLLAGE, ADD_OVERLAY, RESHAPE }
 
-/** The collage's own settings, under the wrench while no cell is selected: three open a dialog, three a strip under the collage. */
+/**
+ * The collage's own settings, under the wrench while no cell is selected:
+ * four open a dialog, three a strip under the collage, and one hides the
+ * overlays or shows them again.
+ */
 private enum class CollageTool(val icon: ImageVector, @param:StringRes val text: Int) {
     LAYOUT(Icons.Filled.Dashboard, R.string.layout),
+    OVERLAY(Icons.Filled.Layers, R.string.overlay),
+    HIDE_OVERLAYS(Icons.Filled.VisibilityOff, R.string.hide_overlays),
     FORMAT(Icons.Filled.AspectRatio, R.string.format),
     GAP(Icons.Filled.BorderOuter, R.string.gap),
     CORNERS(Icons.Filled.RoundedCorner, R.string.corners),
@@ -152,8 +166,34 @@ private fun CellTool.enabled(collage: Collage, cell: Int): Boolean {
     }
 }
 
-/** Where picked photos go: [NEW] into empty cells, [REPLACE] in place of the photo in a cell. */
-private enum class PickMode { NEW, REPLACE }
+/** What the selected overlay's tools can do, under the pencil while one is selected. */
+private enum class OverlayTool(val icon: ImageVector, @param:StringRes val text: Int) {
+    REPLACE(Icons.Filled.AddPhotoAlternate, R.string.replace_photo),
+    SHAPE(Icons.Filled.Category, R.string.shape),
+    TURN(Icons.AutoMirrored.Filled.RotateRight, R.string.turn),
+    FORWARD(Icons.Filled.FlipToFront, R.string.bring_forward),
+    BACKWARD(Icons.Filled.FlipToBack, R.string.send_backward),
+    CLEAR(Icons.Filled.HideImage, R.string.clear_photo),
+    REMOVE(Icons.Filled.DeleteOutline, R.string.remove_overlay),
+    INFO(Icons.Filled.Info, R.string.photo_info),
+}
+
+/** Whether [tool] can be used on overlay [index] of [collage]: a photo to act on, a place to move to in the stack. */
+private fun OverlayTool.enabled(collage: Collage, index: Int): Boolean {
+    val hasPhoto = collage.overlays.getOrNull(index)?.photo != null
+    return when (this) {
+        OverlayTool.REPLACE, OverlayTool.SHAPE, OverlayTool.REMOVE -> true
+        OverlayTool.TURN, OverlayTool.CLEAR, OverlayTool.INFO -> hasPhoto
+        OverlayTool.FORWARD -> index < collage.overlays.size - 1
+        OverlayTool.BACKWARD -> index > 0
+    }
+}
+
+/**
+ * Where picked photos go: [NEW] into empty cells, [REPLACE] in place of the
+ * photo in a cell, [OVERLAY] into an overlay in place of what is there.
+ */
+private enum class PickMode { NEW, REPLACE, OVERLAY }
 
 @Composable
 private fun EditorScreen(
@@ -168,14 +208,23 @@ private fun EditorScreen(
     val rotation = rememberCanvasRotation()
     var adjust by rememberSaveable { mutableStateOf(Adjust.NONE) }
     var dialog by rememberSaveable { mutableStateOf(Dialog.NONE) }
-    // The cell a picker was opened for; saveable, since the picker can outlive the activity.
+    // The cell or overlay a picker was opened for, and for which way of picking; saveable,
+    // since the picker can outlive the activity.
     var pickCell by rememberSaveable { mutableIntStateOf(0) }
+    var pickMode by rememberSaveable { mutableStateOf(PickMode.NEW) }
+    fun deliver(mode: PickMode, uris: List<Uri>) {
+        when (mode) {
+            PickMode.NEW -> vm.addPhotos(uris, pickCell)
+            PickMode.REPLACE -> uris.firstOrNull()?.let { vm.replacePhoto(pickCell, it) }
+            PickMode.OVERLAY -> uris.firstOrNull()?.let { vm.setOverlayPhoto(pickCell, it) }
+        }
+    }
 
     val pickMany = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
-        vm.addPhotos(uris, pickCell)
+        deliver(PickMode.NEW, uris)
     }
     val pickOne = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { vm.replacePhoto(pickCell, it) }
+        uri?.let { deliver(pickMode, listOf(it)) }
     }
     // GET_CONTENT, not the system photo picker: it lists every app that
     // hands out images — PhotoBox among them — beside the phone's own.
@@ -194,6 +243,7 @@ private fun EditorScreen(
     }
     fun pick(cell: Int, mode: PickMode) {
         pickCell = cell
+        pickMode = mode
         if (mediaAccess(context) == MediaAccess.NONE) {
             awaitingAccess = mode
             askAccess.launch(mediaPermissions())
@@ -211,7 +261,9 @@ private fun EditorScreen(
         }
     }
 
-    BackHandler(enabled = state.selected != null || state.swapFrom != null || state.cut != null) { vm.deselect() }
+    BackHandler(
+        enabled = state.selected != null || state.swapFrom != null || state.cut != null || state.overlay != null,
+    ) { vm.deselect() }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
@@ -222,6 +274,21 @@ private fun EditorScreen(
                 onNew = { if (vm.collageLosesWork()) dialog = Dialog.NEW_COLLAGE else vm.startNew(saveFirst = false) },
                 onSave = { dialog = Dialog.SAVE },
                 onProperties = { dialog = Dialog.PROPERTIES },
+                onOverlayTool = { tool ->
+                    val index = state.overlay
+                    if (index != null) {
+                        when (tool) {
+                            OverlayTool.REPLACE -> pick(index, PickMode.OVERLAY)
+                            OverlayTool.SHAPE -> dialog = Dialog.RESHAPE
+                            OverlayTool.TURN -> vm.turnOverlayPhoto()
+                            OverlayTool.FORWARD -> vm.restackOverlay(1)
+                            OverlayTool.BACKWARD -> vm.restackOverlay(-1)
+                            OverlayTool.CLEAR -> vm.clearOverlay()
+                            OverlayTool.REMOVE -> vm.removeOverlay()
+                            OverlayTool.INFO -> dialog = Dialog.PHOTO_INFO
+                        }
+                    }
+                },
                 onCellTool = { tool ->
                     val cell = state.selected
                     if (cell != null) {
@@ -246,6 +313,8 @@ private fun EditorScreen(
                         CollageTool.CORNERS -> adjust = Adjust.CORNER
                         CollageTool.BLEND -> adjust = Adjust.BLEND
                         CollageTool.BACKGROUND -> dialog = Dialog.BACKGROUND
+                        CollageTool.OVERLAY -> dialog = Dialog.ADD_OVERLAY
+                        CollageTool.HIDE_OVERLAYS -> vm.toggleOverlays()
                     }
                 },
                 onSettings = onSettings,
@@ -259,9 +328,10 @@ private fun EditorScreen(
                     previews = vm.previews,
                     vm = vm,
                     onPickFor = { pick(it, PickMode.NEW) },
+                    onPickForOverlay = { pick(it, PickMode.OVERLAY) },
                     modifier = Modifier.fillMaxSize(),
                 )
-                if (state.collage.isEmpty && state.collage.cellCount == 1) {
+                if (state.collage.cellsEmpty && state.collage.cellCount == 1) {
                     Button(onClick = { pick(0, PickMode.NEW) }) { Text(stringResource(R.string.choose_photos)) }
                 }
             }
@@ -297,7 +367,7 @@ private fun EditorScreen(
                 multiple = mode == PickMode.NEW,
                 onPicked = { uris ->
                     picking = null
-                    if (mode == PickMode.NEW) vm.addPhotos(uris, pickCell) else uris.firstOrNull()?.let { vm.replacePhoto(pickCell, it) }
+                    deliver(mode, uris)
                 },
                 onOtherApps = {
                     picking = null
@@ -343,8 +413,22 @@ private fun EditorScreen(
         )
         Dialog.PROPERTIES -> PropertiesDialog(state.collage, onDismiss = { dialog = Dialog.NONE })
         // Of the selected cell's photo; gone with it, should the cell be let go or emptied meanwhile.
-        Dialog.PHOTO_INFO -> state.selected?.let { state.collage.leaves.getOrNull(it)?.photo }?.let { cell ->
+        Dialog.PHOTO_INFO -> (
+            state.overlay?.let { state.collage.overlays.getOrNull(it)?.photo }
+                ?: state.selected?.let { state.collage.leaves.getOrNull(it)?.photo }
+            )?.let { cell ->
             PhotoInfoDialog(cell.photo, onDismiss = { dialog = Dialog.NONE })
+        }
+        Dialog.ADD_OVERLAY -> OverlayShapeDialog(onDismiss = { dialog = Dialog.NONE }) {
+            dialog = Dialog.NONE
+            vm.addOverlay(it)
+        }
+        // Of the selected overlay; gone with it, should it be let go meanwhile.
+        Dialog.RESHAPE -> state.overlay?.let { state.collage.overlays.getOrNull(it) }?.let { overlay ->
+            OverlayShapeDialog(current = overlay.shape, onDismiss = { dialog = Dialog.NONE }) {
+                dialog = Dialog.NONE
+                vm.reshapeOverlay(it)
+            }
         }
         Dialog.NEW_COLLAGE, Dialog.NONE -> Unit
     }
@@ -382,6 +466,7 @@ private fun TopBar(
     onProperties: () -> Unit,
     onTool: (CollageTool) -> Unit,
     onCellTool: (CellTool) -> Unit,
+    onOverlayTool: (OverlayTool) -> Unit,
     onSettings: () -> Unit,
     onDrafts: () -> Unit,
     onAbout: () -> Unit,
@@ -398,14 +483,25 @@ private fun TopBar(
         // One button for both: the selected cell's tools while a cell is selected, the collage's otherwise —
         // a pencil for the one, a wrench for the other, so it says which before it opens.
         val cell = state.selected
+        val overlay = state.overlay
         Box {
-            if (cell != null) {
+            if (cell != null || overlay != null) {
                 LargeIconButton(Icons.Filled.Edit, stringResource(R.string.cell_tools), { tools = true })
             } else {
                 LargeIconButton(Icons.Filled.Build, stringResource(R.string.collage_settings), { tools = true })
             }
             AppMenu(expanded = tools, onDismissRequest = { tools = false }) {
-                if (cell != null) {
+                if (overlay != null) {
+                    OverlayTool.entries.forEach { tool ->
+                        // Replace is Add photo on an empty overlay.
+                        val empty = state.collage.overlays.getOrNull(overlay)?.photo == null
+                        val text = if (tool == OverlayTool.REPLACE && empty) R.string.add_photo else tool.text
+                        AppMenuItem(stringResource(text), enabled = tool.enabled(state.collage, overlay), icon = tool.icon) {
+                            tools = false
+                            onOverlayTool(tool)
+                        }
+                    }
+                } else if (cell != null) {
                     CellTool.entries.forEach { tool ->
                         // Replace is Add photo on an empty cell.
                         val empty = state.collage.leaves.getOrNull(cell)?.photo == null
@@ -417,7 +513,16 @@ private fun TopBar(
                     }
                 } else {
                     CollageTool.entries.forEach { tool ->
-                        AppMenuItem(stringResource(tool.text), icon = tool.icon) {
+                        val enabled = when (tool) {
+                            CollageTool.OVERLAY -> state.collage.overlays.size < MAX_OVERLAYS
+                            CollageTool.HIDE_OVERLAYS -> state.collage.overlays.isNotEmpty()
+                            else -> true
+                        }
+                        // While they are hidden, the same line shows them again.
+                        val showing = tool == CollageTool.HIDE_OVERLAYS && state.overlaysHidden
+                        val text = if (showing) R.string.show_overlays else tool.text
+                        val icon = if (showing) Icons.Filled.Visibility else tool.icon
+                        AppMenuItem(stringResource(text), enabled = enabled, icon = icon) {
                             tools = false
                             onTool(tool)
                         }

@@ -3,6 +3,8 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- N: Hide overlays in the wrench menu leaves their outlines and lets the cells under them be worked on
+- N: Overlays in the wrench menu put up to six photos in shapes over the cells — circle, square, triangle, diamond, hexagon, star, heart — moved, sized and turned by hand
 - I: 24-ToLocalUpdates.sh publishes the newest build of every project to the local update server
 - N: Diagonally in the cell tools cuts a cell with a slanting line, a photo there going into both halves
 - N: A tap on a gap shows a dot on each end of its cut, and a dot dragged tilts the cut, as far as corner to corner

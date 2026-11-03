@@ -108,7 +108,14 @@ fun LayoutDialog(collage: Collage, onDismiss: () -> Unit, onPick: (Node) -> Unit
                 )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     options.forEach { root ->
-                        val preview = collage.copy(root = root, gap = PREVIEW_GAP, corner = 0f, background = Color.TRANSPARENT)
+                        val preview = collage.copy(
+                            root = root,
+                            gap = PREVIEW_GAP,
+                            corner = 0f,
+                            background = Color.TRANSPARENT,
+                            // The layout alone: the overlays stay as they are whatever it is.
+                            overlays = emptyList(),
+                        )
                         Canvas(
                             Modifier
                                 .height(PREVIEW_HEIGHT)

@@ -331,7 +331,12 @@ class CollageLayout(
     val shapes: List<Shape> = cells.map { it.corners },
     /** The gap round and between the cells, in pixels. */
     val gap: Float = 0f,
+    /** The overlays as they lie on the canvas, the last on top. */
+    val overlays: List<OverlayPlace> = emptyList(),
 ) {
+    /** The overlay under ([x], [y]), the topmost if more are; null when none is. */
+    fun overlayAt(x: Float, y: Float): Int? = overlays.indexOfLast { it.contains(x, y) }.takeIf { it >= 0 }
+
     /**
      * The room [cells][index]'s photo is framed in: the box round the cell,
      * and as far past it as the photo fades over its neighbours, so the photo
@@ -430,7 +435,8 @@ fun layoutOf(collage: Collage, width: Float, height: Float): CollageLayout {
 
     val canvas = Box(0f, 0f, width, height).inset(gap / 2)
     place(collage.root, canvas.corners, canvas, emptyList())
-    return CollageLayout(cells, dividers, collage.corner * short, collage.blend * short, shapes, gap)
+    val overlays = collage.overlays.map { placeOf(it, width, height) }
+    return CollageLayout(cells, dividers, collage.corner * short, collage.blend * short, shapes, gap, overlays)
 }
 
 /** The part of the line from [a] to [b] that lies in [shape]; the whole of it when the shape is gone. */

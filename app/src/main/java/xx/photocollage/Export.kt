@@ -78,13 +78,19 @@ fun renderCollage(context: Context, collage: Collage): Rendered {
 
 /**
  * The long side each photo of [collage] is needed at, drawn by [layout]: what
- * its cell's framing shows it at, the larger where it is in two cells.
+ * its cell's or overlay's framing shows it at, the larger where it is in two.
  */
 private fun neededSizes(collage: Collage, layout: CollageLayout): Map<Photo, Int> {
     val needed = HashMap<Photo, Int>()
     collage.leaves.forEachIndexed { index, leaf ->
         val cell = leaf.photo ?: return@forEachIndexed
         val box = layout.frameOf(index)
+        val (w, h) = cell.clamped(box.width, box.height).shownSize(box.width, box.height)
+        needed[cell.photo] = max(needed[cell.photo] ?: 0, ceil(max(w, h)).toInt())
+    }
+    collage.overlays.forEachIndexed { index, overlay ->
+        val cell = overlay.photo ?: return@forEachIndexed
+        val box = layout.overlays.getOrNull(index)?.photoFrame(layout.blend) ?: return@forEachIndexed
         val (w, h) = cell.clamped(box.width, box.height).shownSize(box.width, box.height)
         needed[cell.photo] = max(needed[cell.photo] ?: 0, ceil(max(w, h)).toInt())
     }

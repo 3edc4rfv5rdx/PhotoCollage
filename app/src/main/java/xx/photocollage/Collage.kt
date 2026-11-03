@@ -4,9 +4,10 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * A collage: a canvas of a given shape cut into cells by a tree of straight
- * cuts, a photo in each cell or none, and the look of the gaps between them.
- * Immutable, so a step back is the previous value and nothing else.
+ * A collage: a canvas of a given shape cut into cells by a tree of cuts, a
+ * photo in each cell or none, overlays on top, and the look of the gaps
+ * between them. Immutable, so a step back is the previous value and nothing
+ * else.
  */
 data class Collage(
     val root: Node = Leaf(),
@@ -26,6 +27,8 @@ data class Collage(
     val background: Int = DEFAULT_BACKGROUND,
     /** The saved image's long side in pixels, one of [aspect]'s sizes; the shape gives the other. */
     val longSide: Int = aspect.defaultLong,
+    /** Photos in shapes of their own over the cells, the last on top. */
+    val overlays: List<Overlay> = emptyList(),
 ) {
     /** Width over height of the canvas. */
     val ratio: Float
@@ -35,7 +38,11 @@ data class Collage(
 
     val leaves: List<Leaf> get() = root.leaves()
 
-    val isEmpty: Boolean get() = leaves.all { it.photo == null }
+    /** Whether no cell holds a photo, whatever the overlays do. */
+    val cellsEmpty: Boolean get() = leaves.all { it.photo == null }
+
+    /** Whether no cell and no overlay holds a photo: nothing to save. */
+    val isEmpty: Boolean get() = cellsEmpty && overlays.all { it.photo == null }
 }
 
 /**
@@ -404,8 +411,8 @@ fun Collage.fillEmpty(from: Int, photos: List<Photo>): Pair<Collage, Int> {
     return result to (photos.size - order.size).coerceAtLeast(0)
 }
 
-/** Every photo the collage shows, in cell order. */
-fun Collage.photos(): List<Photo> = leaves.mapNotNull { it.photo?.photo }
+/** Every photo the collage shows: the cells' in cell order, then the overlays' from the bottom up. */
+fun Collage.photos(): List<Photo> = leaves.mapNotNull { it.photo?.photo } + overlays.mapNotNull { it.photo?.photo }
 
 /**
  * Whether starting another collage in place of this one would lose work:

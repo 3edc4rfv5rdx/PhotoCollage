@@ -1,5 +1,6 @@
 package xx.photocollage
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
@@ -25,6 +26,15 @@ internal fun Collage.json(): JSONObject = JSONObject()
     .put("background", background)
     .put("longSide", longSide)
     .put("root", nodeJson(root))
+    .apply { if (overlays.isNotEmpty()) put("overlays", JSONArray(overlays.map(::overlayJson))) }
+
+private fun overlayJson(overlay: Overlay): JSONObject = JSONObject()
+    .put("shape", overlay.shape.name)
+    .put("x", overlay.centerX.toDouble())
+    .put("y", overlay.centerY.toDouble())
+    .put("size", overlay.size.toDouble())
+    .put("angle", overlay.angle.toDouble())
+    .apply { overlay.photo?.let { put("photo", cellJson(it)) } }
 
 private fun nodeJson(node: Node): JSONObject = when (node) {
     is Leaf -> JSONObject().apply { node.photo?.let { put("photo", cellJson(it)) } }
@@ -64,6 +74,7 @@ fun collageFromJson(text: String, exists: (String) -> Boolean): Collage? = runCa
         corner = json.optDouble("corner", 0.0).toFloat().coerceIn(0f, MAX_CORNER),
         blend = json.optDouble("blend", 0.0).toFloat().coerceIn(0f, MAX_BLEND),
         background = json.optInt("background", DEFAULT_BACKGROUND),
+        overlays = overlaysFrom(json.optJSONArray("overlays"), exists),
     ).let { collage ->
         // A size the shape does not offer — another version's, or a hand edit — is the shape's own.
         val long = json.optInt("longSide")
@@ -83,6 +94,23 @@ private fun nodeFrom(json: JSONObject, exists: (String) -> Boolean): Node {
         second = nodeFrom(json.getJSONObject("second"), exists),
         ratio2 = b,
     )
+}
+
+/** The overlays [array] holds, none for a draft of the time before there were any; one of a shape this version does not know is left out. */
+private fun overlaysFrom(array: JSONArray?, exists: (String) -> Boolean): List<Overlay> {
+    if (array == null) return emptyList()
+    return (0 until array.length()).mapNotNull { i ->
+        val json = array.optJSONObject(i) ?: return@mapNotNull null
+        val shape = enumValues<OverlayShape>().firstOrNull { it.name == json.optString("shape") } ?: return@mapNotNull null
+        Overlay(
+            shape = shape,
+            centerX = json.optDouble("x", 0.5).toFloat().coerceIn(0f, 1f),
+            centerY = json.optDouble("y", 0.5).toFloat().coerceIn(0f, 1f),
+            size = json.optDouble("size", DEFAULT_OVERLAY.toDouble()).toFloat().coerceIn(MIN_OVERLAY, MAX_OVERLAY),
+            angle = normalizedAngle(json.optDouble("angle", 0.0).toFloat()),
+            photo = json.optJSONObject("photo")?.let { cellFrom(it, exists) },
+        )
+    }.take(MAX_OVERLAYS)
 }
 
 private fun cellFrom(json: JSONObject, exists: (String) -> Boolean): CellPhoto? {

@@ -1,6 +1,7 @@
 package xx.photocollage
 
 import android.graphics.Bitmap
+import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Matrix
@@ -97,7 +98,10 @@ fun drawCollage(
         }
         onDrawn(bitmap)
     }
-    if (layout.blend <= 0f) return
+    if (layout.blend <= 0f) {
+        drawOverlays(canvas, collage, layout, emptyColor, onDrawn, bitmapOf)
+        return
+    }
     val extent = layout.extent
     val mask = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
     collage.leaves.forEachIndexed { index, leaf ->
@@ -137,6 +141,73 @@ fun drawCollage(
                 BLEND_EDGE_ALPHA, 0, Shader.TileMode.CLAMP,
             )
             canvas.drawRect(area, mask)
+            canvas.restoreToCount(layer)
+        }
+        onDrawn(bitmap)
+    }
+    drawOverlays(canvas, collage, layout, emptyColor, onDrawn, bitmapOf)
+}
+
+/**
+ * The overlays over the cells, the last on top. Each stands off what is under
+ * it by a ring of the background as wide as the gap; its corners round with
+ * the cells' where its shape has any; with a blend its edge is soft, half
+ * the blend inside it and half out. [bitmapOf] and [onDrawn] are called once
+ * for each, an empty one filled with [emptyColor].
+ */
+private fun drawOverlays(
+    canvas: Canvas,
+    collage: Collage,
+    layout: CollageLayout,
+    emptyColor: Int,
+    onDrawn: (Bitmap) -> Unit,
+    bitmapOf: (Photo) -> Bitmap?,
+) {
+    if (collage.overlays.isEmpty()) return
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeJoin = Paint.Join.ROUND
+        color = collage.background
+        strokeWidth = layout.gap * 2
+    }
+    // The soft edge: the shape blurred, laid as a whole layer over the photo's to keep it only
+    // where the shape is — a layer, since a path drawn straight in would leave the photo past its reach.
+    val feather = if (layout.blend > 0f) {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply { maskFilter = BlurMaskFilter(layout.blend, BlurMaskFilter.Blur.NORMAL) }
+    } else {
+        null
+    }
+    val keepWhereShape = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
+    val path = Path()
+    val matrix = Matrix()
+    collage.overlays.forEachIndexed { index, overlay ->
+        val place = layout.overlays.getOrNull(index) ?: return@forEachIndexed
+        shapePath(place.outline, if (overlay.shape.rounds) layout.corner else 0f, path)
+        // The stroke lies half inside: the photo covers that half.
+        if (layout.gap > 0f) canvas.drawPath(path, ring)
+        val photo = overlay.photo
+        val bitmap = photo?.let { bitmapOf(it.photo) }
+        if (photo == null || bitmap == null) {
+            paint.color = emptyColor
+            canvas.drawPath(path, paint)
+            return@forEachIndexed
+        }
+        photoMatrix(photo, bitmap, place.photoFrame(layout.blend), matrix)
+        matrix.postRotate(place.angle)
+        matrix.postTranslate(place.center.x, place.center.y)
+        if (feather == null) {
+            canvas.withSave {
+                clipPath(path)
+                drawBitmap(bitmap, matrix, paint)
+            }
+        } else {
+            val reach = boundsOf(place.outline).inset(-layout.blend * 2)
+            val area = RectF(reach.left, reach.top, reach.right, reach.bottom)
+            val layer = canvas.saveLayer(area, null)
+            canvas.drawBitmap(bitmap, matrix, paint)
+            canvas.saveLayer(area, keepWhereShape)
+            canvas.drawPath(path, feather)
             canvas.restoreToCount(layer)
         }
         onDrawn(bitmap)

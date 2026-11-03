@@ -38,6 +38,13 @@ data class EditorState(
     val swapFrom: Int? = null,
     /** The cut whose ends are shown, to tilt it by: its path in the tree, or null. Never with a cell selected. */
     val cut: List<Boolean>? = null,
+    /** The overlay selected, to move, size and turn and for the cell tools to act on, or null. Never with a cell or a cut. */
+    val overlay: Int? = null,
+    /**
+     * The overlays shown only as outlines, touches going through them to the
+     * cells under them: the editor's alone, so a saved image still has them.
+     */
+    val overlaysHidden: Boolean = false,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
     /** Photos being copied in or a collage being drawn: the editor waits. */
@@ -144,12 +151,12 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     fun addPhotos(uris: List<Uri>, cell: Int? = null) {
         if (uris.isEmpty()) return
         val current = history.current
-        val fresh = current.isEmpty && current.cellCount == 1
+        val fresh = current.cellsEmpty && current.cellCount == 1
         val room = if (fresh) TEMPLATE_COUNTS.last else current.leaves.count { it.photo == null }
         val taken = uris.take(room)
         importing(taken) { photos ->
             val now = history.current
-            if (fresh && now.isEmpty) {
+            if (fresh && now.cellsEmpty) {
                 val root = templates(photos.size).first().withPhotos(photos.map { CellPhoto(it) })
                 push(now.copy(root = root))
                 _state.value = _state.value.copy(selected = null)
@@ -222,10 +229,10 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         }
         val leaf = history.current.leaves.getOrNull(index) ?: return false
         if (leaf.photo == null) {
-            _state.value = s.copy(selected = index, cut = null)
+            _state.value = s.copy(selected = index, cut = null, overlay = null)
             return true
         }
-        _state.value = s.copy(selected = if (s.selected == index) null else index, cut = null)
+        _state.value = s.copy(selected = if (s.selected == index) null else index, cut = null, overlay = null)
         return false
     }
 
@@ -233,11 +240,11 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     fun tapCut(path: List<Boolean>) {
         if (history.current.root.cutAt(path) == null) return
         val s = _state.value
-        _state.value = s.copy(cut = if (s.cut == path) null else path, selected = null, swapFrom = null)
+        _state.value = s.copy(cut = if (s.cut == path) null else path, selected = null, swapFrom = null, overlay = null)
     }
 
     fun deselect() {
-        _state.value = _state.value.copy(selected = null, swapFrom = null, cut = null)
+        _state.value = _state.value.copy(selected = null, swapFrom = null, cut = null, overlay = null)
     }
 
     /** The selected cell waits for a tap on a second, to trade photos with it. */
@@ -292,7 +299,8 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     /** A ready-made layout, the photos there are given out to its cells in order; any past its end are left out. */
     fun applyTemplate(root: Node) {
-        val photos = history.current.photos().size
+        // The cells' photos: the overlays keep theirs.
+        val photos = history.current.leaves.count { it.photo != null }
         push(history.current.withLayout(root))
         // A cut's way in the old tree may lead to another cut in the new one.
         _state.value = _state.value.copy(selected = null, swapFrom = null, cut = null)
@@ -340,8 +348,8 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         publish()
     }
 
-    /** An empty collage of the same shape and look, kept as no draft yet. */
-    private fun newCollage() = replaceCollage(history.current.copy(root = Leaf()), draftId = null)
+    /** An empty collage of the same shape and look, no overlays on it, kept as no draft yet. */
+    private fun newCollage() = replaceCollage(history.current.copy(root = Leaf(), overlays = emptyList()), draftId = null)
 
     /**
      * [collage] in place of the one here, kept as draft [draftId] holding
@@ -352,7 +360,14 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun replaceCollage(collage: Collage, draftId: String?, draft: Collage? = null) {
         history.reset(collage)
-        _state.value = _state.value.copy(selected = null, swapFrom = null, cut = null, draftId = draftId, draft = draft)
+        _state.value = _state.value.copy(
+            selected = null,
+            swapFrom = null,
+            cut = null,
+            overlay = null,
+            draftId = draftId,
+            draft = draft,
+        )
         publish()
     }
 
@@ -395,6 +410,107 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
             newCollage()
             if (shared != null) addPhotos(shared)
         }
+    }
+
+    // ---------- Overlays ----------
+
+    /** A new empty overlay of [shape] in the middle, on top and selected; none past [MAX_OVERLAYS]. */
+    fun addOverlay(shape: OverlayShape) {
+        val now = history.current
+        if (now.overlays.size >= MAX_OVERLAYS) return
+        push(now.withOverlay(Overlay(shape)))
+        // Shown again: a new one hidden at once would be no use.
+        _state.value = _state.value.copy(
+            overlay = now.overlays.size,
+            selected = null,
+            swapFrom = null,
+            cut = null,
+            overlaysHidden = false,
+        )
+    }
+
+    /** The overlays hidden, to work on the cells under them, or shown again; a hidden one is no longer selected. */
+    fun toggleOverlays() {
+        val s = _state.value
+        _state.value = s.copy(overlaysHidden = !s.overlaysHidden, overlay = if (s.overlaysHidden) s.overlay else null)
+    }
+
+    /**
+     * A tap on overlay [index]: selected, or let go if it was. An empty one is
+     * selected and stays so, and true is returned for the screen to ask for a
+     * photo, as for an empty cell.
+     */
+    fun tapOverlay(index: Int): Boolean {
+        val overlay = history.current.overlays.getOrNull(index) ?: return false
+        val s = _state.value
+        val empty = overlay.photo == null
+        val next = if (empty || s.overlay != index) index else null
+        _state.value = s.copy(overlay = next, selected = null, swapFrom = null, cut = null)
+        return empty
+    }
+
+    /** Overlay [index] moved, mid-drag, so its middle is at ([x], [y]) as parts of the canvas; [endGesture] makes the drag one step. */
+    fun moveOverlay(index: Int, x: Float, y: Float) = liveOverlay(index) { it.movedTo(x, y) }
+
+    /** Overlay [index] sized and turned, mid-drag; see [sizedTo]. */
+    fun sizeOverlay(index: Int, size: Float, angle: Float) = liveOverlay(index) { it.sizedTo(size, angle) }
+
+    /** The photo in overlay [index] moved by fingers over it, in its own unturned frame; see [transformed]. */
+    fun transformOverlayPhoto(
+        index: Int,
+        frameWidth: Float,
+        frameHeight: Float,
+        panX: Float,
+        panY: Float,
+        scale: Float,
+        pivotX: Float,
+        pivotY: Float,
+        rotation: Float,
+    ) = liveOverlay(index) { overlay ->
+        overlay.copy(
+            photo = overlay.photo?.transformed(frameWidth, frameHeight, panX, panY, scale, pivotX, pivotY, rotation),
+        )
+    }
+
+    private fun liveOverlay(index: Int, change: (Overlay) -> Overlay) {
+        if (index >= history.current.overlays.size) return
+        history.live(history.current.mapOverlay(index, change))
+        publish()
+    }
+
+    /** The photo the user picked for overlay [index], in place of what is there. */
+    fun setOverlayPhoto(index: Int, uri: Uri) {
+        importing(listOf(uri)) { photos ->
+            push(history.current.mapOverlay(index) { it.copy(photo = CellPhoto(photos.first())) })
+        }
+    }
+
+    /** The selected overlay as [shape], its photo framed afresh for it. */
+    fun reshapeOverlay(shape: OverlayShape) = onOverlay { c, i ->
+        c.mapOverlay(i) { it.copy(shape = shape, photo = it.photo?.let(::refit)) }
+    }
+
+    fun turnOverlayPhoto() = onOverlay { c, i -> c.mapOverlay(i) { it.copy(photo = it.photo?.turned()) } }
+
+    fun clearOverlay() = onOverlay { c, i -> c.mapOverlay(i) { it.copy(photo = null) } }
+
+    fun removeOverlay() {
+        val i = _state.value.overlay ?: return
+        push(history.current.withoutOverlay(i))
+        _state.value = _state.value.copy(overlay = null)
+    }
+
+    /** The selected overlay one place up the stack, or down for a negative [by]; it stays selected. */
+    fun restackOverlay(by: Int) {
+        val i = _state.value.overlay ?: return
+        val (next, to) = history.current.restacked(i, by)
+        push(next)
+        _state.value = _state.value.copy(overlay = to)
+    }
+
+    private inline fun onOverlay(change: (Collage, Int) -> Collage) {
+        val i = _state.value.overlay ?: return
+        push(change(history.current, i))
     }
 
     // ---------- Gestures ----------
@@ -444,9 +560,9 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         if (history.redo()) afterJump()
     }
 
-    /** After a jump through history no cell or cut is where it was: the selection goes. */
+    /** After a jump through history no cell, cut or overlay is where it was: the selection goes. */
     private fun afterJump() {
-        _state.value = _state.value.copy(selected = null, swapFrom = null, cut = null)
+        _state.value = _state.value.copy(selected = null, swapFrom = null, cut = null, overlay = null)
         publish()
     }
 
@@ -458,6 +574,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
             selected = s.selected?.takeIf { it < count },
             swapFrom = s.swapFrom?.takeIf { it < count },
             cut = s.cut?.takeIf { collage.root.cutAt(it) != null },
+            overlay = s.overlay?.takeIf { it < collage.overlays.size },
         )
         publish()
     }

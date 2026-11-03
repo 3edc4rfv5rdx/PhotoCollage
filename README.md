@@ -24,6 +24,14 @@ save or share.**
   both sides, each framed on its own.
 - **Borders**: drag a gap between cells to move it, slant and all; tap it for
   a dot on each end and drag a dot to tilt it, as far as corner to corner.
+- **Overlays** (wrench): up to 6 photos in shapes of their own over the
+  cells — circle, square, triangle, diamond, hexagon, star, heart. Fingers
+  move the photo in one; tapped, the overlay itself moves, pinches and turns,
+  and the dot on its corner sizes and turns it; the pencil changes its photo
+  and shape, moves it up or down the stack, or removes it. The gap rings it
+  in the background's colour, the corners round it, and Blend softens its
+  edge. Hide overlays (wrench) leaves only their outlines and lets the cells
+  under them be worked on; a saved image still has them.
 - **Photo in its cell**: drag to move it, pinch to zoom, turn two fingers to
   tilt it to any angle, turn it a quarter at a time — which also straightens a
   tilt — replace or clear it; Photo info says where it came from — folder and
