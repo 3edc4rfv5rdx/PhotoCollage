@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- E: Photos shared into the app as it starts are no longer deleted by the start's clean-up
 - E: A saved or shared image never has an empty cell where a photo was: a photo short of memory is drawn smaller, and an unreadable one stops the save with a message
 - E: The collage being edited comes back at the next start, and a new collage asks before it replaces one that holds work
 - I: Lint no longer warns that targetSdk is behind the newest Android: raising it is a decision for every project at once
