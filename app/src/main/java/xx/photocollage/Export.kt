@@ -119,7 +119,8 @@ private fun saveToPictures(context: Context, bitmap: Bitmap, fileName: String): 
         // Hidden from other apps until it is written whole.
         put(MediaStore.Images.Media.IS_PENDING, 1)
     }
-    val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return null
+    // Throws, not only gives null, when the storage is not there.
+    val uri = runCatching { resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) }.getOrNull() ?: return null
     return try {
         writeJpeg(context, bitmap, uri)
         resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)

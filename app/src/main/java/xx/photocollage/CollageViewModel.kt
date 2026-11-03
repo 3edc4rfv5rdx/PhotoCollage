@@ -7,6 +7,7 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -476,23 +477,38 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         if (file == null) say(Notice(R.string.image_save_failed)) else _events.tryEmit(EditorEvent.Share(file))
     }
 
+    /**
+     * The collage drawn and handed to [then] off the main thread. Whatever
+     * goes wrong on the way ends as a message and an editor free to use
+     * again, never a crash.
+     */
     private fun rendering(then: (Bitmap) -> Unit) {
         if (_state.value.busy) return
         val collage = history.current
         setBusy(true)
         viewModelScope.launch {
-            val rendered = withContext(Dispatchers.Default) {
-                photoLock.withLock { renderCollage(context, collage) }
-            }
-            when (rendered) {
-                is Rendered.Done -> {
-                    withContext(Dispatchers.IO) { then(rendered.bitmap) }
-                    rendered.bitmap.recycle()
+            try {
+                val rendered = withContext(Dispatchers.Default) {
+                    photoLock.withLock { renderCollage(context, collage) }
                 }
-                Rendered.TooLarge -> say(Notice(R.string.image_too_large))
-                is Rendered.Unreadable -> say(Notice(R.string.image_photos_unreadable, listOf(rendered.count)))
+                when (rendered) {
+                    is Rendered.Done -> try {
+                        withContext(Dispatchers.IO) { then(rendered.bitmap) }
+                    } finally {
+                        rendered.bitmap.recycle()
+                    }
+                    Rendered.TooLarge -> say(Notice(R.string.image_too_large))
+                    is Rendered.Unreadable -> say(Notice(R.string.image_photos_unreadable, listOf(rendered.count)))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                say(Notice(R.string.image_save_failed))
+            } catch (e: OutOfMemoryError) {
+                say(Notice(R.string.image_too_large))
+            } finally {
+                setBusy(false)
             }
-            setBusy(false)
         }
     }
 
