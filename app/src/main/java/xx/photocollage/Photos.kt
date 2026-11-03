@@ -22,8 +22,11 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 fun photoDir(context: Context): File = File(context.filesDir, "photos").apply { mkdirs() }
 
-/** The saved draft, beside the photo folder. */
-fun draftFile(context: Context): File = File(context.filesDir, "draft.json")
+/** The drafts saved by hand, one file each, beside the photo folder. */
+fun draftDir(context: Context): File = File(context.filesDir, "drafts")
+
+/** The one draft of the time when there was a single draft; moved into [draftDir] at the first start that finds it. */
+fun oldDraftFile(context: Context): File = File(context.filesDir, "draft.json")
 
 /** The collage being edited, written after every step and opened again at the next start. */
 fun sessionFile(context: Context): File = File(context.filesDir, "current.json")
@@ -144,7 +147,7 @@ internal fun copyAtMost(input: InputStream, output: OutputStream, limit: Long): 
 }
 
 /**
- * Deletes every file in [dir] not in [keep] — the draft's photos and the
+ * Deletes every file in [dir] not in [keep] — the drafts' photos and the
  * collage left off at's — the first time [done] is seen unset, and sets it.
  * Meant to run before the first copy of a run is made into [dir]: the other
  * copies of an earlier run are of no more use, and nothing of this run is

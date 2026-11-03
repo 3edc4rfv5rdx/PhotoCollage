@@ -3,6 +3,9 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- N: Drafts in the ⋮ menu shows every draft as a picture, a tap shows it large to open or delete
+- N: Save draft writes over the collage's own draft, and Save as new draft keeps a copy
+- F: A new collage or an opened draft starts with no step back to the collage before it
 ## v0.3.59 (2026-11-03)
 - I: The lint and test scripts hold their summary on screen for 5 seconds instead of 3
 - E: With rounded corners, the Blend fade goes round the corners instead of jutting past them

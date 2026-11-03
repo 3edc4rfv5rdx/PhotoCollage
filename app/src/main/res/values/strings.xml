@@ -35,6 +35,15 @@
     <string name="share">Share</string>
     <string name="save_draft">Save draft</string>
     <string name="open_draft">Open draft</string>
+    <string name="save_as_new_draft">Save as new draft</string>
+    <string name="drafts">Drafts</string>
+    <string name="no_drafts">No drafts</string>
+    <string name="save_draft_and_open">Save draft and open</string>
+    <string name="open_without_saving">Open without saving</string>
+    <string name="open">Open</string>
+    <string name="delete">Delete</string>
+    <string name="delete_draft">Delete draft</string>
+    <string name="delete_draft_warning">It cannot be brought back</string>
     <string name="new_collage_question">Start a new collage</string>
     <string name="new_collage_warning">The current collage will be gone</string>
     <string name="save_draft_and_start">Save draft and start</string>
@@ -78,6 +87,7 @@
     <string name="draft_saved">Draft saved</string>
     <string name="draft_save_failed">Could not save the draft</string>
     <string name="draft_open_failed">Could not open the draft</string>
+    <string name="draft_delete_failed">Could not delete the draft</string>
     <string name="image_saved">Saved</string>
     <string name="image_save_failed">Could not save the image</string>
     <string name="save_folder_unavailable">Save folder not available</string>

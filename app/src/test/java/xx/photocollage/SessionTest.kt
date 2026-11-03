@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -59,5 +60,24 @@ class SessionTest {
         } finally {
             scope.cancel()
         }
+    }
+
+    @Test
+    fun theDraftTheCollageIsKeptAsComesBackWithIt() {
+        val collage = Collage(root = Leaf(CellPhoto(Photo("a.img", 40, 30))))
+        val id = newDraftId()
+        val text = sessionText(collage, id)
+        assertEquals(id, sessionDraftId(text))
+        assertEquals(collage, collageFromJson(text) { true })
+    }
+
+    @Test
+    fun aCollageKeptAsNoDraftNamesNone() {
+        val text = sessionText(Collage(), null)
+        assertNull(sessionDraftId(text))
+        assertEquals(Collage(), collageFromJson(text) { true })
+        assertNull(sessionDraftId(Collage().toJson()))
+        assertNull(sessionDraftId("not json"))
+        assertNull(sessionDraftId(JSONObject(Collage().toJson()).put("draft", "../x").toString()))
     }
 }

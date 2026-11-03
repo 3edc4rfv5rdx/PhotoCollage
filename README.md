@@ -49,9 +49,12 @@ save or share.**
   and photos.
 - **Kept**: the collage being edited is there again at the next start, even
   after the system closed the app; a new collage — from the menu or photos
-  shared in — asks first, and can save the old one as the draft.
-- **Draft**: save the collage by hand (under it, or ⋮) and open it again later; the app
-  keeps its own copy of every photo in it.
+  shared in — asks first, and can save the old one as its draft.
+- **Drafts**: save the collage by hand (under it, or ⋮) as a draft and come back to it
+  later; saved again, it writes over its own draft, and Save as new draft (⋮) keeps a
+  copy apart. Drafts (⋮) shows them all as pictures, the latest first; a tap shows one
+  large, to open — asking first over a collage that holds work — or delete. The app
+  keeps its own copy of every photo in them.
 - English, Russian and Ukrainian; light and dark themes with accent colours.
 
 One permission besides the updater's: reading photos, for the app's own

@@ -2,6 +2,7 @@ package xx.photocollage
 
 import org.json.JSONObject
 import java.io.File
+import java.util.UUID
 
 /** The draft's format; a file of another one is not read. */
 private const val DRAFT_VERSION = 1
@@ -11,7 +12,10 @@ private const val DRAFT_VERSION = 1
  * off at. Photos are named, not held: their copies stay in the app's photo
  * folder, which keeps every one either file names.
  */
-fun Collage.toJson(): String = JSONObject()
+fun Collage.toJson(): String = json().toString()
+
+/** The collage as a JSON object, for the session file to add its own to; see [toJson]. */
+internal fun Collage.json(): JSONObject = JSONObject()
     .put("version", DRAFT_VERSION)
     .put("aspect", aspect.name)
     .put("landscape", landscape)
@@ -21,7 +25,6 @@ fun Collage.toJson(): String = JSONObject()
     .put("background", background)
     .put("longSide", longSide)
     .put("root", nodeJson(root))
-    .toString()
 
 private fun nodeJson(node: Node): JSONObject = when (node) {
     is Leaf -> JSONObject().apply { node.photo?.let { put("photo", cellJson(it)) } }
@@ -99,20 +102,61 @@ private fun cellFrom(json: JSONObject, exists: (String) -> Boolean): CellPhoto? 
 fun isPhotoName(name: String): Boolean =
     name.isNotEmpty() && name.none { it == '/' || it == '\\' } && name != "." && name != ".."
 
+/** A saved draft: its [id], and when it was last written, in milliseconds since the epoch. */
+data class DraftInfo(val id: String, val savedAt: Long)
+
+private val DRAFT_ID = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+/** Whether [id] is one [newDraftId] could have made: no path in it, so no file outside the drafts' folder is named. */
+fun isDraftId(id: String): Boolean = DRAFT_ID.matches(id)
+
+/** The id of a draft not saved before. */
+fun newDraftId(): String = UUID.randomUUID().toString()
+
 /**
- * The one draft saved by hand, in [file]. A photo [photoExists] says is gone
- * leaves its cell empty as the draft is read.
+ * The drafts saved by hand, one file each in [dir], by id. A photo
+ * [photoExists] says is gone leaves its cell empty as a draft is read.
  */
-class DraftStore(private val file: File, private val photoExists: (String) -> Boolean) {
+class DraftStore(private val dir: File, private val photoExists: (String) -> Boolean) {
 
-    /** Whether a draft was ever saved, readable or not. */
-    val present: Boolean get() = file.exists()
+    private fun fileOf(id: String) = File(dir, "$id$DRAFT_EXT")
 
-    /** The collage the draft holds, or null when there is none or it cannot be read. */
-    fun read(): Collage? = runCatching { file.readText() }.getOrNull()?.let { collageFromJson(it, photoExists) }
+    /** Every draft there is, readable or not, the one written last first. */
+    fun list(): List<DraftInfo> = dir.listFiles().orEmpty()
+        .filter { it.isFile && it.name.endsWith(DRAFT_EXT) && isDraftId(it.name.removeSuffix(DRAFT_EXT)) }
+        .map { DraftInfo(it.name.removeSuffix(DRAFT_EXT), it.lastModified()) }
+        .sortedWith(compareByDescending<DraftInfo> { it.savedAt }.thenBy { it.id })
 
-    /** [collage] as the draft, whole or not at all; whether it was written. */
-    fun write(collage: Collage): Boolean = runCatching { writeAtomically(file, collage.toJson()) }.isSuccess
+    /** The collage draft [id] holds, or null when there is none or it cannot be read. */
+    fun read(id: String): Collage? {
+        if (!isDraftId(id)) return null
+        return runCatching { fileOf(id).readText() }.getOrNull()?.let { collageFromJson(it, photoExists) }
+    }
+
+    /** [collage] as draft [id], over what it held if anything, whole or not at all; whether it was written. */
+    fun write(id: String, collage: Collage): Boolean = isDraftId(id) && runCatching {
+        dir.mkdirs()
+        writeAtomically(fileOf(id), collage.toJson())
+    }.isSuccess
+
+    /** Draft [id] gone; whether it is, a draft that was never there being as gone as one deleted. */
+    fun delete(id: String): Boolean = isDraftId(id) && fileOf(id).let { it.delete() || !it.exists() }
+
+    /**
+     * The draft in [old] — the one file of the time when there was a single
+     * draft — moved in as one of these; its id, or null when there was none
+     * to move.
+     */
+    fun adopt(old: File): String? {
+        if (!old.isFile) return null
+        dir.mkdirs()
+        val id = newDraftId()
+        return id.takeIf { old.renameTo(fileOf(it)) }
+    }
+
+    private companion object {
+        const val DRAFT_EXT = ".json"
+    }
 }
 
 /** Writes [text] to [file] whole or not at all: into a file beside it first, then moved over. */

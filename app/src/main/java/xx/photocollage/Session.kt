@@ -7,7 +7,18 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.io.File
+
+/** The session file's text: [collage], and the draft it is kept as when it is one. */
+fun sessionText(collage: Collage, draftId: String?): String =
+    collage.json().apply { if (draftId != null) put(SESSION_DRAFT, draftId) }.toString()
+
+/** The draft a session file's [text] says its collage is kept as; null when none, or no draft id. */
+fun sessionDraftId(text: String): String? =
+    runCatching { JSONObject(text).optString(SESSION_DRAFT) }.getOrNull()?.takeIf(::isDraftId)
+
+private const val SESSION_DRAFT = "draft"
 
 /**
  * The collage being edited, as the text kept in [file] so the next start

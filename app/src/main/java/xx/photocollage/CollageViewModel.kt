@@ -40,8 +40,11 @@ data class EditorState(
     val canRedo: Boolean = false,
     /** Photos being copied in or a collage being drawn: the editor waits. */
     val busy: Boolean = false,
-    val hasDraft: Boolean = false,
-    /** What the draft file holds as far as this editor knows; null when there is none or it cannot be read. */
+    /** Every saved draft, the one written last first. */
+    val drafts: List<DraftInfo> = emptyList(),
+    /** The draft this collage is kept as — opened from or saved to — which Save draft writes over; null while it is none yet. */
+    val draftId: String? = null,
+    /** What that draft holds as far as this editor knows; null when there is none or it cannot be read. */
     val draft: Collage? = null,
     /** Photos shared from another app while the collage holds work: they wait for the user to say whether to start anew. */
     val pendingShare: List<Uri>? = null,
@@ -88,33 +91,45 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     /** Whether the app keeps a copy of the photo by this file name: a draft or session naming one it lost leaves its cell empty. */
     private val photoExists: (String) -> Boolean = photoDir(app).let { dir -> { name -> File(dir, name).isFile } }
 
-    private val draftStore = DraftStore(draftFile(app), photoExists)
+    private val draftStore = DraftStore(draftDir(app), photoExists)
 
     /** The collage left off at, opened at the start; its photos outlive the clean-up. */
     private val leftOff: Collage?
 
     init {
-        leftOff = session.latest()?.let { collageFromJson(it, photoExists) }
+        val adopted = draftStore.adopt(oldDraftFile(app))
+        val text = session.latest()
+        leftOff = text?.let { collageFromJson(it, photoExists) }
         leftOff?.let(history::reset)
-        // Read here, not later: a Share at a cold start asks whether the collage is the
+        // The session names the draft its collage is kept as; one of the time before there
+        // were several names none, and the old single draft is its draft only if it is the same.
+        val named = text?.let(::sessionDraftId)
+        val linked = named ?: adopted?.takeIf { leftOff != null && draftStore.read(it) == leftOff }
+        // Read here, not later: a Share at a cold start asks whether the collage is its
         // draft's straight after this, and an answer of "unknown" would be "no".
+        val draft = linked?.let(draftStore::read)
         _state.value = EditorState(
             collage = history.current,
-            hasDraft = draftStore.present,
-            draft = draftStore.read(),
+            drafts = draftStore.list(),
+            // A draft deleted, or never written, keeps nothing: Save draft makes a new one.
+            draftId = linked.takeIf { draft != null },
+            draft = draft,
         )
+        if (_state.value.draftId != named) keepSession()
         loadPreviews(history.current)
         viewModelScope.launch { withContext(Dispatchers.IO) { photoLock.withLock { cleanUpOnce() } } }
     }
 
     /**
-     * The photo copies of an earlier run that neither the draft nor the
+     * The photo copies of an earlier run that neither a draft nor the
      * collage left off at names, deleted once per process. Called under
      * [photoLock] here and before every import, so whichever comes first
      * does it, and never after a copy of this run is made.
      */
     private fun cleanUpOnce() =
-        forgetPhotosOnce(cleaned, photoDir(context)) { keptPhotos(draftStore.read(), leftOff) }
+        forgetPhotosOnce(cleaned, photoDir(context)) {
+            keptPhotos(*draftStore.list().map { draftStore.read(it.id) }.toTypedArray(), leftOff)
+        }
 
     // ---------- Photos in ----------
 
@@ -305,14 +320,24 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         publish()
     }
 
-    /** An empty collage of the same shape and look; a step back brings the old one back. */
-    private fun newCollage() {
-        push(history.current.copy(root = Leaf()))
-        _state.value = _state.value.copy(selected = null, swapFrom = null)
+    /** An empty collage of the same shape and look, kept as no draft yet. */
+    private fun newCollage() = replaceCollage(history.current.copy(root = Leaf()), draftId = null)
+
+    /**
+     * [collage] in place of the one here, kept as draft [draftId] holding
+     * [draft], with no step back: a step would bring back the collage of
+     * another draft, or of none, which Save draft would then write over this
+     * one's. The user is asked before work is lost instead (see
+     * [collageLosesWork]).
+     */
+    private fun replaceCollage(collage: Collage, draftId: String?, draft: Collage? = null) {
+        history.reset(collage)
+        _state.value = _state.value.copy(selected = null, swapFrom = null, draftId = draftId, draft = draft)
+        publish()
     }
 
-    /** Whether starting a new collage would lose work, so the user is asked first. */
-    fun newCollageLosesWork(): Boolean = history.current.hasWorkBeyond(_state.value.draft)
+    /** Whether another collage in place of this one would lose work, so the user is asked first. */
+    fun collageLosesWork(): Boolean = history.current.hasWorkBeyond(_state.value.draft)
 
     /**
      * Photos shared from another app: a new collage of them, at once if the
@@ -320,7 +345,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun receiveShared(uris: List<Uri>) {
         if (uris.isEmpty()) return
-        if (newCollageLosesWork()) {
+        if (collageLosesWork()) {
             _state.value = _state.value.copy(pendingShare = uris)
         } else {
             newCollage()
@@ -334,7 +359,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * A new collage in place of this one, after saving this one as the
+     * A new collage in place of this one, after saving this one as its
      * draft when [saveFirst] — and not at all if that fails, the shared
      * photos then still waiting on the question. It is made of those, or left
      * empty, its Choose photos button in the middle.
@@ -343,7 +368,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         val shared = _state.value.pendingShare
         _state.value = _state.value.copy(pendingShare = null)
         viewModelScope.launch {
-            if (saveFirst && !writeDraft(history.current)) {
+            if (saveFirst && !writeDraft(asNew = false)) {
                 if (shared != null) _state.value = _state.value.copy(pendingShare = shared)
                 return@launch
             }
@@ -424,7 +449,12 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         val collage = history.current
         _state.value = _state.value.copy(collage = collage, canUndo = history.canUndo, canRedo = history.canRedo)
         loadPreviews(collage)
-        if (!history.inGesture) session.keep(collage.toJson())
+        keepSession()
+    }
+
+    /** The collage, and the draft it is kept as, to open again at the next start; not a value mid-gesture. */
+    private fun keepSession() {
+        if (!history.inGesture) session.keep(sessionText(history.current, _state.value.draftId))
     }
 
     private fun loadPreviews(collage: Collage) {
@@ -453,33 +483,72 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ---------- Draft ----------
+    // ---------- Drafts ----------
 
-    fun saveDraft() {
-        val collage = history.current
-        viewModelScope.launch { writeDraft(collage) }
+    /** The collage as its draft: over the one it is kept as, or as a new one when [asNew] or it is none yet. */
+    fun saveDraft(asNew: Boolean = false) {
+        viewModelScope.launch { writeDraft(asNew) }
     }
 
-    /** [collage] as the draft, said either way; whether it was written. */
-    private suspend fun writeDraft(collage: Collage): Boolean {
-        val ok = withContext(Dispatchers.IO) { draftStore.write(collage) }
-        if (ok) _state.value = _state.value.copy(hasDraft = true, draft = collage)
+    /** See [saveDraft]; said either way, and whether it was written. */
+    private suspend fun writeDraft(asNew: Boolean): Boolean {
+        val collage = history.current
+        val before = _state.value.draftId
+        val id = before.takeUnless { asNew } ?: newDraftId()
+        // Kept as it at once: a second Save draft before this one is written writes over the
+        // same draft instead of making another.
+        _state.value = _state.value.copy(draftId = id)
+        val ok = withContext(Dispatchers.IO) { draftStore.write(id, collage) }
+        val s = _state.value
+        // Unless another collage took this one's place meanwhile, which is no draft of it.
+        if (s.draftId == id) {
+            _state.value = if (ok) s.copy(draft = collage) else s.copy(draftId = before)
+            keepSession()
+        }
+        refreshDrafts()
         say(Notice(if (ok) R.string.draft_saved else R.string.draft_save_failed))
         return ok
     }
 
-    /** The saved draft in place of the collage; a step back brings the collage back. */
-    fun openDraft() {
+    /**
+     * Draft [id] in place of the collage, after saving the collage as its
+     * draft when [saveFirst] — and not at all if that fails.
+     */
+    fun openDraft(id: String, saveFirst: Boolean) {
         viewModelScope.launch {
-            val collage = withContext(Dispatchers.IO) { draftStore.read() }
+            if (saveFirst && !writeDraft(asNew = false)) return@launch
+            val collage = withContext(Dispatchers.IO) { draftStore.read(id) }
             if (collage == null) {
                 say(Notice(R.string.draft_open_failed))
+                refreshDrafts()
             } else {
-                _state.value = _state.value.copy(draft = collage)
-                push(collage)
-                _state.value = _state.value.copy(selected = null, swapFrom = null)
+                replaceCollage(collage, draftId = id, draft = collage)
             }
         }
+    }
+
+    /** Draft [id] gone; the collage kept as it, if any, is then kept as none, and Save draft makes a new one. */
+    fun deleteDraft(id: String) {
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) { draftStore.delete(id) }
+            if (!ok) {
+                say(Notice(R.string.draft_delete_failed))
+            } else if (_state.value.draftId == id) {
+                _state.value = _state.value.copy(draftId = null, draft = null)
+                keepSession()
+            }
+            refreshDrafts()
+        }
+    }
+
+    /** Draft [id] drawn [longSide] pixels on its long side, to be looked at; null when it cannot be read or drawn. */
+    suspend fun draftPreview(id: String, longSide: Int): Bitmap? = withContext(Dispatchers.IO) {
+        runCatching { draftStore.read(id)?.let { renderPreview(context, it, longSide) } }.getOrNull()
+    }
+
+    private suspend fun refreshDrafts() {
+        val drafts = withContext(Dispatchers.IO) { draftStore.list() }
+        _state.value = _state.value.copy(drafts = drafts)
     }
 
     // ---------- Out ----------

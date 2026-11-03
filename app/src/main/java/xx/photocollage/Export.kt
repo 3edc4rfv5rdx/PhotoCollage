@@ -54,14 +54,7 @@ fun renderCollage(context: Context, collage: Collage): Rendered {
         return Rendered.TooLarge
     }
     val layout = layoutOf(collage, width.toFloat(), height.toFloat())
-    // The size each photo is needed at, by its cell: what its framing shows it at.
-    val needed = HashMap<Photo, Int>()
-    collage.leaves.forEachIndexed { index, leaf ->
-        val cell = leaf.photo ?: return@forEachIndexed
-        val box = layout.frameOf(index)
-        val (w, h) = cell.clamped(box.width, box.height).shownSize(box.width, box.height)
-        needed[cell.photo] = max(needed[cell.photo] ?: 0, ceil(max(w, h)).toInt())
-    }
+    val needed = neededSizes(collage, layout)
     val unreadable = HashSet<Photo>()
     drawCollage(
         Canvas(bitmap),
@@ -81,6 +74,47 @@ fun renderCollage(context: Context, collage: Collage): Rendered {
         return Rendered.Unreadable(unreadable.size)
     }
     return Rendered.Done(bitmap)
+}
+
+/**
+ * The long side each photo of [collage] is needed at, drawn by [layout]: what
+ * its cell's framing shows it at, the larger where it is in two cells.
+ */
+private fun neededSizes(collage: Collage, layout: CollageLayout): Map<Photo, Int> {
+    val needed = HashMap<Photo, Int>()
+    collage.leaves.forEachIndexed { index, leaf ->
+        val cell = leaf.photo ?: return@forEachIndexed
+        val box = layout.frameOf(index)
+        val (w, h) = cell.clamped(box.width, box.height).shownSize(box.width, box.height)
+        needed[cell.photo] = max(needed[cell.photo] ?: 0, ceil(max(w, h)).toInt())
+    }
+    return needed
+}
+
+/**
+ * [collage] drawn [longSide] pixels on its long side, to be looked at, not
+ * saved: each photo decoded about as small as it is shown, and once, though
+ * a blend asks for it twice; one that will not decode leaves its cell empty.
+ * Null without the memory for it.
+ */
+fun renderPreview(context: Context, collage: Collage, longSide: Int): Bitmap? {
+    val (width, height) = collage.savedSize(longSide)
+    val layout = layoutOf(collage, width.toFloat(), height.toFloat())
+    val needed = neededSizes(collage, layout)
+    val decoded = HashMap<Photo, Bitmap?>()
+    return try {
+        val bitmap = createBitmap(width, height)
+        drawCollage(Canvas(bitmap), collage, width.toFloat(), height.toFloat(), layout) { photo ->
+            // Never below the size a decode is worth making at, nor at nothing for a cell squeezed flat.
+            val long = (needed[photo] ?: longSide).coerceAtLeast(MIN_DECODE_LONG)
+            decoded.getOrPut(photo) { decodePhoto(photoFile(context, photo), long) }
+        }
+        bitmap
+    } catch (e: OutOfMemoryError) {
+        null
+    } finally {
+        decoded.values.forEach { it?.recycle() }
+    }
 }
 
 /**

@@ -35,6 +35,15 @@
     <string name="share">Поделиться</string>
     <string name="save_draft">Сохранить черновик</string>
     <string name="open_draft">Открыть черновик</string>
+    <string name="save_as_new_draft">Сохранить как новый черновик</string>
+    <string name="drafts">Черновики</string>
+    <string name="no_drafts">Черновиков нет</string>
+    <string name="save_draft_and_open">Сохранить черновик и открыть</string>
+    <string name="open_without_saving">Открыть без сохранения</string>
+    <string name="open">Открыть</string>
+    <string name="delete">Удалить</string>
+    <string name="delete_draft">Удалить черновик</string>
+    <string name="delete_draft_warning">Его нельзя будет вернуть</string>
     <string name="new_collage_question">Начать новый коллаж</string>
     <string name="new_collage_warning">Текущий коллаж пропадёт</string>
     <string name="save_draft_and_start">Сохранить черновик и начать</string>
@@ -78,6 +87,7 @@
     <string name="draft_saved">Черновик сохранён</string>
     <string name="draft_save_failed">Не удалось сохранить черновик</string>
     <string name="draft_open_failed">Не удалось открыть черновик</string>
+    <string name="draft_delete_failed">Не удалось удалить черновик</string>
     <string name="image_saved">Сохранено</string>
     <string name="image_save_failed">Не удалось сохранить изображение</string>
     <string name="save_folder_unavailable">Папка для сохранения недоступна</string>

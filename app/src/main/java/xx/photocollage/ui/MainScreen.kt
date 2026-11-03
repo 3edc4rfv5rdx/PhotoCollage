@@ -86,17 +86,24 @@ import xx.photocollage.mediaAccess
 import xx.photocollage.mediaPermissions
 import java.text.NumberFormat
 
-private enum class Screen { EDITOR, SETTINGS }
+private enum class Screen { EDITOR, SETTINGS, DRAFTS }
 
-/** The editor, and Settings over it from the ⋮ menu. */
+/** The editor, and Settings and the drafts over it from the ⋮ menu. */
 @Composable
 fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
     var screen by rememberSaveable { mutableStateOf(Screen.EDITOR) }
     when (screen) {
-        Screen.EDITOR -> EditorScreen(vm, onExit = onExit, onSettings = { screen = Screen.SETTINGS }, onAbout = onAbout)
+        Screen.EDITOR -> EditorScreen(
+            vm,
+            onExit = onExit,
+            onSettings = { screen = Screen.SETTINGS },
+            onDrafts = { screen = Screen.DRAFTS },
+            onAbout = onAbout,
+        )
         Screen.SETTINGS -> AppScreen(title = stringResource(R.string.settings), onBack = { screen = Screen.EDITOR }) {
             SettingsScreen(modifier = Modifier.weight(1f))
         }
+        Screen.DRAFTS -> DraftsScreen(vm, onBack = { screen = Screen.EDITOR }, onOpened = { screen = Screen.EDITOR })
     }
 }
 
@@ -145,7 +152,13 @@ private fun CellTool.enabled(collage: Collage, cell: Int): Boolean {
 private enum class PickMode { NEW, REPLACE }
 
 @Composable
-private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: () -> Unit, onAbout: () -> Unit) {
+private fun EditorScreen(
+    vm: CollageViewModel,
+    onExit: () -> Unit,
+    onSettings: () -> Unit,
+    onDrafts: () -> Unit,
+    onAbout: () -> Unit,
+) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
     val rotation = rememberCanvasRotation()
@@ -202,7 +215,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                 state,
                 vm,
                 onExit = onExit,
-                onNew = { if (vm.newCollageLosesWork()) dialog = Dialog.NEW_COLLAGE else vm.startNew(saveFirst = false) },
+                onNew = { if (vm.collageLosesWork()) dialog = Dialog.NEW_COLLAGE else vm.startNew(saveFirst = false) },
                 onSave = { dialog = Dialog.SAVE },
                 onProperties = { dialog = Dialog.PROPERTIES },
                 onCellTool = { tool ->
@@ -231,6 +244,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                     }
                 },
                 onSettings = onSettings,
+                onDrafts = onDrafts,
                 onAbout = onAbout,
             )
             // Only the collage turns with the phone; the bars and dialogs stay upright.
@@ -259,14 +273,14 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                         HorizontalDivider()
                         AdjustRow(adjust, state, vm, onClose = { adjust = Adjust.NONE })
                     }
-                    // Nothing else wants the room: the collage is put aside as the draft from here,
+                    // Nothing else wants the room: the collage is put aside as its draft from here,
                     // apart from the one kept by itself between starts.
                     !state.collage.isEmpty -> Box(
                         Modifier.fillMaxWidth().height(BOTTOM_PANEL_HEIGHT),
                         contentAlignment = Alignment.Center,
                     ) {
-                        // Off while the draft holds this very collage: nothing to save.
-                        Button(onClick = vm::saveDraft, enabled = state.collage.hasWorkBeyond(state.draft)) {
+                        // Off while its draft holds this very collage: nothing to save.
+                        Button(onClick = { vm.saveDraft() }, enabled = state.collage.hasWorkBeyond(state.draft)) {
                             Text(stringResource(R.string.save_draft))
                         }
                     }
@@ -364,6 +378,7 @@ private fun TopBar(
     onTool: (CollageTool) -> Unit,
     onCellTool: (CellTool) -> Unit,
     onSettings: () -> Unit,
+    onDrafts: () -> Unit,
     onAbout: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
@@ -424,9 +439,14 @@ private fun TopBar(
                     menu = false
                     vm.saveDraft()
                 }
-                AppMenuItem(stringResource(R.string.open_draft), enabled = state.hasDraft) {
+                // A copy of the draft the collage is kept as, to go on from apart; with no draft yet, Save draft is that.
+                AppMenuItem(stringResource(R.string.save_as_new_draft), enabled = hasPhotos && state.draftId != null) {
                     menu = false
-                    vm.openDraft()
+                    vm.saveDraft(asNew = true)
+                }
+                AppMenuItem(stringResource(R.string.drafts), enabled = state.drafts.isNotEmpty()) {
+                    menu = false
+                    onDrafts()
                 }
                 AppMenuItem(stringResource(R.string.properties)) {
                     menu = false
