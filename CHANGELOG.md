@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- F: Photo info shows a path without the storage it lies on
 - N: The app's own picker shows the phone's photos folder by folder, as pictures or a list of names, several picked at once in order, with the system's picker under Other apps
 - N: Photo info in the cell tools shows where the photo came from, its size in pixels and its megapixels
 - F: A file shared in that is too large is said as too large, not as unreadable

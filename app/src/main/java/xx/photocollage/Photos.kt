@@ -111,6 +111,17 @@ private fun documentPath(context: Context, uri: Uri): String? {
     }
 }
 
+/**
+ * [path] without the storage it lies on, as the user knows a path: from the
+ * phone's own storage — "/storage/emulated/0/", "/sdcard/" — what is inside
+ * it, from a card its name and what is inside it. Any other is left as it is.
+ */
+fun shownPath(path: String): String =
+    path.replaceFirst(STORAGE_ROOT, "").replaceFirst(CARD_ROOT, "")
+
+private val STORAGE_ROOT = Regex("^(/storage/emulated/\\d+|/sdcard)/")
+private val CARD_ROOT = Regex("^/storage/(?=[^/]+/)")
+
 /** [folder], as MediaStore gives it — "DCIM/Camera/" or empty — and [name] as one path. */
 internal fun sourcePath(folder: String, name: String): String =
     if (folder.isBlank()) name else folder.trimEnd('/') + "/" + name

@@ -98,4 +98,14 @@ class PhotosTest {
         assertEquals("DCIM/Camera/a.jpg", sourcePath("DCIM/Camera", "a.jpg"))
         assertEquals("a.jpg", sourcePath("", "a.jpg"))
     }
+
+    @Test
+    fun aPathIsShownWithoutTheStorageItLiesOn() {
+        assertEquals("Download/a.jpg", shownPath("/storage/emulated/0/Download/a.jpg"))
+        assertEquals("DCIM/a.jpg", shownPath("/storage/emulated/10/DCIM/a.jpg"))
+        assertEquals("Pictures/a.jpg", shownPath("/sdcard/Pictures/a.jpg"))
+        assertEquals("1A2B-3C4D/DCIM/a.jpg", shownPath("/storage/1A2B-3C4D/DCIM/a.jpg"))
+        assertEquals("DCIM/tormoz/a.jpg", shownPath("DCIM/tormoz/a.jpg"))
+        assertEquals("a.jpg", shownPath("a.jpg"))
+    }
 }

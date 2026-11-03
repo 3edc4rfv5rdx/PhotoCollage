@@ -52,6 +52,7 @@ import xx.photocollage.drawCollage
 import xx.photocollage.photos
 import xx.photocollage.preset
 import xx.photocollage.savedSize
+import xx.photocollage.shownPath
 import xx.photocollage.mirrored
 import xx.photocollage.templates
 import xx.photocollage.turnedClockwise
@@ -245,7 +246,7 @@ fun PhotoInfoDialog(photo: Photo, onDismiss: () -> Unit) {
     InfoDialog(
         title = stringResource(R.string.photo_info),
         rows = listOf(
-            stringResource(R.string.photo_source) to (photo.source ?: NO_VALUE),
+            stringResource(R.string.photo_source) to (photo.source?.let(::shownPath) ?: NO_VALUE),
             stringResource(R.string.size) to sizeText(photo.width to photo.height),
             stringResource(R.string.megapixels) to megapixels,
         ),
