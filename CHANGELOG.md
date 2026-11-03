@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- E: The editor waits until a save and photos coming in have both ended, not only the first of them
 - E: Photos shared in at a start no longer ask about a new collage when the draft already holds the one there
 - E: With a gap, Blend no longer fades photos into the margin round the collage
 - E: Reopening the app from Recents after closing it no longer brings back the photos it was first shared

@@ -104,7 +104,7 @@ the typed file name, the SAF tree URI and its grant.
   and unit-test it: SEND fresh → yes; SEND with LAUNCHED_FROM_HISTORY → no;
   SEND with saved state → no; MAIN → no.
 
-### 2. P3 — The busy overlay is one boolean shared by imports and renders: the first to finish lifts it while the other still runs
+### 2. P3 [FIXED 67a41b6] — The busy overlay is one boolean shared by imports and renders: the first to finish lifts it while the other still runs
 
 - **Affected components:** `CollageViewModel.setBusy`, `importing`
   (`setBusy(true)` … `finally { setBusy(false) }`), `rendering`
