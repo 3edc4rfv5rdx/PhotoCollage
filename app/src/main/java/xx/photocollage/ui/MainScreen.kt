@@ -7,9 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,7 +19,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Redo
@@ -68,7 +65,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import xx.photocollage.BACKGROUNDS
 import xx.photocollage.Collage
 import xx.photocollage.CollageViewModel
 import xx.photocollage.Dir
@@ -94,12 +90,12 @@ fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
 }
 
 /** Which of the collage's own settings is open under the canvas. */
-private enum class Adjust { NONE, GAP, CORNER, BACKGROUND }
+private enum class Adjust { NONE, GAP, CORNER }
 
 /** Which dialog is up. */
-private enum class Dialog { NONE, LAYOUT, FORMAT, SAVE, PROPERTIES, NEW_COLLAGE }
+private enum class Dialog { NONE, LAYOUT, FORMAT, BACKGROUND, SAVE, PROPERTIES, NEW_COLLAGE }
 
-/** The collage's own settings, under the wrench while no cell is selected: two open a dialog, three a strip under the collage. */
+/** The collage's own settings, under the wrench while no cell is selected: three open a dialog, two a strip under the collage. */
 private enum class CollageTool(val icon: ImageVector, @param:StringRes val text: Int) {
     LAYOUT(Icons.Filled.Dashboard, R.string.layout),
     FORMAT(Icons.Filled.AspectRatio, R.string.format),
@@ -199,7 +195,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
                         CollageTool.FORMAT -> dialog = Dialog.FORMAT
                         CollageTool.GAP -> adjust = Adjust.GAP
                         CollageTool.CORNERS -> adjust = Adjust.CORNER
-                        CollageTool.BACKGROUND -> adjust = Adjust.BACKGROUND
+                        CollageTool.BACKGROUND -> dialog = Dialog.BACKGROUND
                     }
                 },
                 onSettings = onSettings,
@@ -264,6 +260,11 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
             dialog = Dialog.NONE
             vm.saveImage(it)
         }
+        Dialog.BACKGROUND -> BackgroundDialog(
+            current = state.collage.background,
+            onPick = vm::setBackground,
+            onDismiss = { dialog = Dialog.NONE },
+        )
         Dialog.PROPERTIES -> PropertiesDialog(state.collage, onDismiss = { dialog = Dialog.NONE })
         Dialog.NEW_COLLAGE, Dialog.NONE -> Unit
     }
@@ -288,7 +289,7 @@ private fun EditorScreen(vm: CollageViewModel, onExit: () -> Unit, onSettings: (
 
 private const val IMAGES = "image/*"
 
-/** The room kept under the collage: one strip — a slider, the colours, or the swap prompt. */
+/** The room kept under the collage: one strip — a slider or the swap prompt. */
 private val BOTTOM_PANEL_HEIGHT = 64.dp
 
 @Composable
@@ -395,7 +396,7 @@ private fun SwapBar(onCancel: () -> Unit) {
     }
 }
 
-/** The open one of the gap, corner and background settings, under the collage, with ✓ to put it away. */
+/** The open one of the gap and corner settings, under the collage, with ✓ to put it away. */
 @Composable
 private fun AdjustRow(adjust: Adjust, state: EditorState, vm: CollageViewModel, onClose: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -418,14 +419,6 @@ private fun AdjustControl(adjust: Adjust, state: EditorState, vm: CollageViewMod
     when (adjust) {
         Adjust.GAP -> AdjustSlider(collage.gap, 0f..MAX_GAP, vm::setGap, vm::endGesture)
         Adjust.CORNER -> AdjustSlider(collage.corner, 0f..MAX_CORNER, vm::setCorner, vm::endGesture)
-        Adjust.BACKGROUND -> Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            BACKGROUNDS.forEach { argb ->
-                AccentSwatch(Color(argb), selected = argb == collage.background) { vm.setBackground(argb) }
-            }
-        }
         Adjust.NONE -> Unit
     }
 }

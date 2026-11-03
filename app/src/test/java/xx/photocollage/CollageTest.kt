@@ -183,4 +183,24 @@ class CollageTest {
         assertEquals(0f, first.angle)
         assertEquals(b, laid.leaves[1].photo?.photo)
     }
+
+    @Test
+    fun theBackgroundSquareIsTwelveByTwelveDistinctOpaqueColours() {
+        assertEquals(BACKGROUND_SHADES, BACKGROUND_SQUARE.size)
+        BACKGROUND_SQUARE.forEach { assertEquals(BACKGROUND_HUES + 1, it.size) }
+        val all = BACKGROUND_SQUARE.flatten()
+        assertEquals(all.size, all.toSet().size)
+        assertTrue(all.all { it ushr 24 == 0xFF })
+        // White at the top of the grey, black at its foot: the default is on offer.
+        assertEquals(DEFAULT_BACKGROUND, BACKGROUND_SQUARE.first().last())
+        assertEquals(0xFF000000.toInt(), BACKGROUND_SQUARE.last().last())
+    }
+
+    @Test
+    fun hslGivesThePrimariesAndGrey() {
+        assertEquals(0xFFFF0000.toInt(), hslToArgb(0f, 1f, 0.5f))
+        assertEquals(0xFF00FF00.toInt(), hslToArgb(120f, 1f, 0.5f))
+        assertEquals(0xFF0000FF.toInt(), hslToArgb(240f, 1f, 0.5f))
+        assertEquals(0xFF808080.toInt(), hslToArgb(0f, 0f, 0.5f))
+    }
 }

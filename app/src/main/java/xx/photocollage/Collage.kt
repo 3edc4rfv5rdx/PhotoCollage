@@ -1,5 +1,6 @@
 package xx.photocollage
 
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -154,12 +155,43 @@ const val MAX_CELLS = 16
 
 const val DEFAULT_BACKGROUND = 0xFFFFFFFF.toInt()
 
-/** The background colours on offer, as ARGB: whites and greys first, then soft colours, then dark ones. */
-val BACKGROUNDS: List<Int> = listOf(
-    0xFFFFFFFF, 0xFFF3EEE4, 0xFFD9D9D9, 0xFF8A8A8A,
-    0xFFF8D7DA, 0xFFFFE9A8, 0xFFD4EDDA, 0xFFCFE2F3,
-    0xFF7A1F2B, 0xFF1F3A5F, 0xFF2E4A2E, 0xFF000000,
-).map { it.toInt() }
+/** How many shades of each hue, and of grey, the background square has, light to dark. */
+const val BACKGROUND_SHADES = 12
+
+/** How many hues round the colour wheel the background square has, grey besides. */
+const val BACKGROUND_HUES = 11
+
+/**
+ * The background colours on offer, as ARGB, row by row: each row one
+ * lightness, light at the top to dark at the bottom, across it the hues round
+ * the wheel from red and then grey — white at the top of the grey, black at
+ * its foot, so [DEFAULT_BACKGROUND] is one of them.
+ */
+val BACKGROUND_SQUARE: List<List<Int>> = List(BACKGROUND_SHADES) { row ->
+    val step = row.toFloat() / (BACKGROUND_SHADES - 1)
+    // Light to dark, clear of white and black, which the grey has.
+    val lightness = 0.92f - step * 0.8f
+    List(BACKGROUND_HUES) { hue -> hslToArgb(hue * 360f / BACKGROUND_HUES, 0.7f, lightness) } +
+        hslToArgb(0f, 0f, 1f - step)
+}
+
+/** The colour of [hue] degrees, [saturation] and [lightness] in 0..1, as opaque ARGB. */
+internal fun hslToArgb(hue: Float, saturation: Float, lightness: Float): Int {
+    val c = (1f - abs(2f * lightness - 1f)) * saturation
+    val h = (hue % 360f) / 60f
+    val x = c * (1f - abs(h % 2f - 1f))
+    val (r, g, b) = when (h.toInt()) {
+        0 -> Triple(c, x, 0f)
+        1 -> Triple(x, c, 0f)
+        2 -> Triple(0f, c, x)
+        3 -> Triple(0f, x, c)
+        4 -> Triple(x, 0f, c)
+        else -> Triple(c, 0f, x)
+    }
+    val m = lightness - c / 2f
+    fun channel(v: Float) = ((v + m) * 255f).roundToInt().coerceIn(0, 255)
+    return (0xFF shl 24) or (channel(r) shl 16) or (channel(g) shl 8) or channel(b)
+}
 
 // ---------- Tree ----------
 
