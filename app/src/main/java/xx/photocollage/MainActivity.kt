@@ -45,7 +45,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AppSettings.load(this)
-        val shared = sharedImages(intent)
+        // Reopened from Recents after it was closed, the task brings back the Share
+        // it was started with: those photos came in then, and are no new Share.
+        val shared = if (launchedFromHistory(intent.flags)) emptyList() else sharedImages(intent)
         // Looks for a newer build in this app's own GitHub release and asks
         // before it downloads anything — on a launch of its own, not over
         // photos just shared from another app.
@@ -97,6 +99,9 @@ class MainActivity : ComponentActivity() {
         About.show(this, AboutConfig(updater = UPDATER_CONFIG, buildDate = BuildConfig.BUILD_DATE))
     }
 }
+
+/** Whether a launch with these intent [flags] is the system reopening the task from Recents with its old intent. */
+internal fun launchedFromHistory(flags: Int): Boolean = flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
 
 /** The images another app shared with this one through [intent]; none for a plain launch. */
 private fun sharedImages(intent: Intent): List<Uri> = when (intent.action) {
