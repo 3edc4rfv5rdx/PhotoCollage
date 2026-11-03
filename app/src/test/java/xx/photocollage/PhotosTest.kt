@@ -77,4 +77,18 @@ class PhotosTest {
         assertFalse(retryDue(1_000L, 5_000L, 10_000L))
         assertTrue(retryDue(1_000L, 11_000L, 10_000L))
     }
+
+    @Test
+    fun aStreamUpToTheLimitIsCopiedWhole() {
+        val out = java.io.ByteArrayOutputStream()
+        assertTrue(copyAtMost(ByteArray(10) { it.toByte() }.inputStream(), out, 10))
+        assertEquals((0 until 10).map { it.toByte() }, out.toByteArray().toList())
+    }
+
+    @Test
+    fun aStreamPastTheLimitStopsWithoutGoingPastIt() {
+        val out = java.io.ByteArrayOutputStream()
+        assertFalse(copyAtMost(ByteArray(20_000).inputStream(), out, 10_000))
+        assertTrue(out.size() <= 10_000)
+    }
 }

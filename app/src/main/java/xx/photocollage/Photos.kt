@@ -7,6 +7,8 @@ import android.graphics.Matrix
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -26,17 +28,24 @@ fun sessionFile(context: Context): File = File(context.filesDir, "current.json")
 /** The file a [Photo] names. */
 fun photoFile(context: Context, photo: Photo): File = File(photoDir(context), photo.file)
 
+/** The most an import copies in: a stream longer than that is taken for no photo, before it fills the phone. */
+const val MAX_IMPORT_BYTES = 500L * 1024 * 1024
+
 /**
  * Copies the image at [uri] into [photoDir] and reads its upright size.
- * Null when it cannot be read or is no image; the half-written copy is not
- * left behind.
+ * Null when it cannot be read, is no image or is over [MAX_IMPORT_BYTES]; the
+ * half-written copy is not left behind.
  */
 fun importPhoto(context: Context, uri: Uri): Photo? {
     val name = "${UUID.randomUUID()}.img"
     val file = File(photoDir(context), name)
     return try {
         val input = context.contentResolver.openInputStream(uri) ?: return null
-        input.use { src -> file.outputStream().use { src.copyTo(it) } }
+        val whole = input.use { src -> file.outputStream().use { copyAtMost(src, it, MAX_IMPORT_BYTES) } }
+        if (!whole) {
+            file.delete()
+            return null
+        }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
@@ -52,6 +61,23 @@ fun importPhoto(context: Context, uri: Uri): Photo? {
     } catch (e: Exception) {
         file.delete()
         null
+    }
+}
+
+/**
+ * Copies [input] into [output], at most [limit] bytes: true when that was all
+ * of it, false when there was more — the copy then stops, no byte past
+ * [limit] written.
+ */
+internal fun copyAtMost(input: InputStream, output: OutputStream, limit: Long): Boolean {
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    var total = 0L
+    while (true) {
+        val read = input.read(buffer)
+        if (read < 0) return true
+        total += read
+        if (total > limit) return false
+        output.write(buffer, 0, read)
     }
 }
 
