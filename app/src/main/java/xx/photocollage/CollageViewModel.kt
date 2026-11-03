@@ -69,6 +69,9 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     private val _events = MutableSharedFlow<EditorEvent>(extraBufferCapacity = 8)
     val events: SharedFlow<EditorEvent> = _events.asSharedFlow()
 
+    /** The imports and renders under way, counted on the main thread: the editor waits while any is, not only the one that ends first. */
+    private val jobs = JobCount()
+
     /** The editor's decoded photos by file name, as far as they are loaded. */
     val previews = mutableStateMapOf<String, Bitmap>()
     private val loading = mutableSetOf<String>()
@@ -159,7 +162,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun importing(uris: List<Uri>, then: (List<Photo>) -> Unit) {
         if (uris.isEmpty()) return
-        setBusy(true)
+        startJob()
         viewModelScope.launch {
             val photos = try {
                 withContext(Dispatchers.IO) {
@@ -173,7 +176,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 emptyList()
             } finally {
-                setBusy(false)
+                endJob()
             }
             if (photos.size < uris.size) say(Notice(R.string.photos_unreadable, listOf(uris.size - photos.size)))
             if (photos.isNotEmpty()) then(photos)
@@ -512,7 +515,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     private fun rendering(then: (Bitmap) -> Unit) {
         if (_state.value.busy) return
         val collage = history.current
-        setBusy(true)
+        startJob()
         viewModelScope.launch {
             try {
                 val rendered = withContext(Dispatchers.Default) {
@@ -534,13 +537,19 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: OutOfMemoryError) {
                 say(Notice(R.string.image_too_large))
             } finally {
-                setBusy(false)
+                endJob()
             }
         }
     }
 
-    private fun setBusy(busy: Boolean) {
-        _state.value = _state.value.copy(busy = busy)
+    private fun startJob() {
+        jobs.start()
+        _state.value = _state.value.copy(busy = jobs.busy)
+    }
+
+    private fun endJob() {
+        jobs.end()
+        _state.value = _state.value.copy(busy = jobs.busy)
     }
 
     private fun say(notice: Notice) {
@@ -574,5 +583,20 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
                 pendingSession.filterNotNull().collect { text -> runCatching { writeAtomically(file, text) } }
             }
         }
+    }
+}
+
+/** How many pieces of work are under way, each [start] matched by an [end]: busy while any is. */
+internal class JobCount {
+    private var running = 0
+
+    val busy: Boolean get() = running > 0
+
+    fun start() {
+        running++
+    }
+
+    fun end() {
+        if (running > 0) running--
     }
 }
