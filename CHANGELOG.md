@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- E: With a gap, Blend no longer fades photos into the margin round the collage
 - E: Reopening the app from Recents after closing it no longer brings back the photos it was first shared
 ## v0.2.50 (2026-11-03)
 - I: The test of the three-photo layouts measures cells before rounding them

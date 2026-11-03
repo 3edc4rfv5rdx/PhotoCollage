@@ -130,7 +130,7 @@ the typed file name, the SAF tree URI and its grant.
 - **Tests to add:** if the count is pulled into a small class, a unit test:
   start A, start B, end A → still busy; end B → not busy.
 
-### 3. P3 — With a gap, Blend bleeds every outer photo into the collage's outer margin
+### 3. P3 [FIXED 07b2c80] — With a gap, Blend bleeds every outer photo into the collage's outer margin
 
 - **Affected components:** `Renderer.kt` `blendBands` (KDoc: "none past the
   canvas's own edge, where there is no neighbour"), `drawCollage` second pass
