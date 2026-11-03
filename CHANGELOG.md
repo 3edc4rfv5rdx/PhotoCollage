@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+## v0.4.63 (2026-11-03)
 - F: The Layout dialog opens at three photos for a collage of one cell
 - F: The Layout dialog draws its layouts' cells in the inverse colour on the dialog's own background, not the collage's
 - N: Drafts in the ⋮ menu shows every draft as a picture, a tap shows it large to open or delete
