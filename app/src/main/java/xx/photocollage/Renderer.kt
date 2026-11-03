@@ -91,10 +91,24 @@ fun drawCollage(
         if (cell.width <= 0f || cell.height <= 0f) return@forEachIndexed
         val bitmap = bitmapOf(photo.photo) ?: return@forEachIndexed
         photoMatrix(photo, bitmap, layout.frameOf(index), matrix)
+        // With rounded corners, the bands end on the cell's rounding carried out by the
+        // blend, not square past it: the fade goes round the cell as its outline does.
+        val radius = layout.cornerOf(index)
+        if (radius > 0f) {
+            val around = layout.frameOf(index)
+            path.reset()
+            path.addRoundRect(
+                RectF(around.left, around.top, around.right, around.bottom),
+                radius + layout.blend,
+                radius + layout.blend,
+                Path.Direction.CW,
+            )
+        }
         blendBands(cell, layout.blend, extent).forEach { band ->
             val area = RectF(band.box.left, band.box.top, band.box.right, band.box.bottom)
             val layer = canvas.saveLayer(area, null)
             canvas.clipRect(area)
+            if (radius > 0f) canvas.clipPath(path)
             canvas.drawBitmap(bitmap, matrix, paint)
             // Half the photo at its cell's edge, where the neighbour's band gives the other
             // half, none at the band's far side.
