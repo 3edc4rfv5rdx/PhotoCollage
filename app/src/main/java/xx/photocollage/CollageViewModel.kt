@@ -44,7 +44,7 @@ data class EditorState(
     /** Photos being copied in or a collage being drawn: the editor waits. */
     val busy: Boolean = false,
     val hasDraft: Boolean = false,
-    /** What the draft file holds as far as this editor knows; null while unknown or when there is none. */
+    /** What the draft file holds as far as this editor knows; null when there is none or it cannot be read. */
     val draft: Collage? = null,
     /** Photos shared from another app while the collage holds work: they wait for the user to say whether to start anew. */
     val pendingShare: List<Uri>? = null,
@@ -92,15 +92,16 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         val sessionText = pendingSession.value ?: runCatching { sessionFile(context).readText() }.getOrNull()
         leftOff = sessionText?.let(::parseCollage)
         leftOff?.let(history::reset)
-        _state.value = EditorState(collage = history.current, hasDraft = draftFile(context).exists())
+        // Read here, not later: a Share at a cold start asks whether the collage is the
+        // draft's straight after this, and an answer of "unknown" would be "no".
+        _state.value = EditorState(
+            collage = history.current,
+            hasDraft = draftFile(context).exists(),
+            draft = readCollage(draftFile(context)),
+        )
         loadPreviews(history.current)
         startSessionWriter(sessionFile(context))
-        viewModelScope.launch {
-            val draft = withContext(Dispatchers.IO) { readCollage(draftFile(context)) }
-            // A draft saved meanwhile is newer than the one read.
-            if (_state.value.draft == null) _state.value = _state.value.copy(draft = draft)
-            withContext(Dispatchers.IO) { photoLock.withLock { cleanUpOnce() } }
-        }
+        viewModelScope.launch { withContext(Dispatchers.IO) { photoLock.withLock { cleanUpOnce() } } }
     }
 
     /**
