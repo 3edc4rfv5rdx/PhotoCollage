@@ -32,6 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -48,6 +49,11 @@ import xx.photocollage.Box as CellBox
 import xx.photocollage.CollageLayout
 import xx.photocollage.CollageViewModel
 import xx.photocollage.EditorState
+import xx.photocollage.Pt
+import xx.photocollage.insetShape
+import xx.photocollage.middleOf
+import xx.photocollage.shapePath
+import xx.photocollage.thickness
 import xx.photocollage.drawCollage
 import xx.photocollage.fitCanvas
 import xx.photocollage.layoutOf
@@ -57,6 +63,15 @@ import kotlin.math.roundToInt
 
 /** How near a cut a finger has to come down to take it rather than the cell beside it. */
 private val DIVIDER_REACH = 16.dp
+
+/** How near a cut a tap has to be to show its ends rather than select the cell beside it. */
+private val CUT_TAP_REACH = 12.dp
+
+/** How near one of the shown cut's ends a finger has to come down to tilt the cut by it. */
+private val HANDLE_REACH = 28.dp
+
+/** The radius of the dot on each end of the shown cut. */
+private val HANDLE_RADIUS = 9.dp
 
 /** The long side of the photo that follows the finger while it is carried to another cell. */
 private val CARRIED_SIZE = 96.dp
@@ -82,9 +97,10 @@ private data class Carry(val from: Int, val at: Offset)
 /**
  * The collage as large as it fits in the space given, with every touch on
  * it: a tap selects a cell or asks for a photo for an empty one; a drag or a
- * pinch moves and zooms the photo under it; a drag on a gap moves that cut;
- * a long press picks a photo up to drop on another cell, where the two trade
- * places.
+ * pinch moves and zooms the photo under it; a drag on a gap moves that cut,
+ * slant and all, and a tap on it shows a dot on each of its ends, a drag of
+ * which tilts it; a long press picks a photo up to drop on another cell,
+ * where the two trade places.
  */
 @Composable
 fun CollageCanvas(
@@ -101,10 +117,12 @@ fun CollageCanvas(
         val layout = remember(state.collage, w, h) { layoutOf(state.collage, w, h) }
         val current by rememberUpdatedState(layout)
         val collage by rememberUpdatedState(state.collage)
+        val shownCut by rememberUpdatedState(state.cut)
         val pickFor by rememberUpdatedState(onPickFor)
         val haptics = LocalHapticFeedback.current
         var carry by remember { mutableStateOf<Carry?>(null) }
         val accent = MaterialTheme.colorScheme.primary
+        val handleRing = MaterialTheme.colorScheme.onPrimary
         // Black on the light window, white on the dark one.
         val edgeColor = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) Color.White else Color.Black
         val edge = with(density) { EDGE_STROKE.toPx() }
@@ -118,6 +136,30 @@ fun CollageCanvas(
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val start = down.position
+                        // The shown cut's ends first: they lie on cells, which would take the touch.
+                        val tilting = shownCut?.let(current::dividerOf)?.let { d ->
+                            listOf(true to d.from, false to d.to)
+                                .map { (atFrom, end) -> atFrom to (Offset(end.x, end.y) - start).getDistance() }
+                                .filter { it.second <= HANDLE_REACH.toPx() }
+                                .minByOrNull { it.second }
+                                ?.let { d to it.first }
+                        }
+                        if (tilting != null) {
+                            val (d, atFrom) = tilting
+                            down.consume()
+                            vm.beginGesture()
+                            try {
+                                drag(down.id) { change ->
+                                    d.tiltedTo(atFrom, change.position.x, change.position.y)?.let { (a, b) ->
+                                        vm.moveCut(d.path, a, b)
+                                    }
+                                    change.consume()
+                                }
+                            } finally {
+                                vm.endGesture()
+                            }
+                            return@awaitEachGesture
+                        }
                         val divider = current.dividerAt(start.x, start.y, DIVIDER_REACH.toPx())
                         if (divider != null) {
                             down.consume()
@@ -128,14 +170,22 @@ fun CollageCanvas(
                             val released = try {
                                 drag(down.id) { change ->
                                     if (!moved) moved = (change.position - start).getDistance() > viewConfiguration.touchSlop
-                                    if (moved) vm.moveDivider(divider.path, divider.ratioAt(change.position.x, change.position.y))
+                                    if (moved) {
+                                        val (a, b) = divider.shiftedTo(change.position.x, change.position.y)
+                                        vm.moveCut(divider.path, a, b)
+                                    }
                                     change.consume()
                                 }
                             } finally {
                                 vm.endGesture()
                             }
                             if (released && !moved) {
-                                current.cellAt(start.x, start.y)?.let { cell -> if (vm.tapCell(cell)) pickFor(cell) }
+                                val onCut = (divider.distance(start.x, start.y) ?: Float.MAX_VALUE) <= CUT_TAP_REACH.toPx()
+                                if (onCut) {
+                                    vm.tapCut(divider.path)
+                                } else {
+                                    current.cellAt(start.x, start.y)?.let { cell -> if (vm.tapCell(cell)) pickFor(cell) }
+                                }
                             }
                             return@awaitEachGesture
                         }
@@ -231,6 +281,16 @@ fun CollageCanvas(
                     style = Stroke(width = edge),
                 )
                 state.selected?.let { outline(layout, it, accent, stroke, dashed = false) }
+                state.cut?.let(layout::dividerOf)?.let { cut ->
+                    val from = Offset(cut.from.x, cut.from.y)
+                    val to = Offset(cut.to.x, cut.to.y)
+                    drawLine(accent, from, to, strokeWidth = stroke)
+                    val radius = with(density) { HANDLE_RADIUS.toPx() }
+                    listOf(from, to).forEach { end ->
+                        drawCircle(accent, radius, end)
+                        drawCircle(handleRing, radius, end, style = Stroke(width = stroke / 1.5f))
+                    }
+                }
                 state.swapFrom?.let { outline(layout, it, accent, stroke, dashed = true) }
                 carry?.let { c ->
                     val target = layout.nearestCell(c.at.x, c.at.y)
@@ -246,12 +306,16 @@ fun CollageCanvas(
                 if (state.collage.leaves.getOrNull(index)?.photo != null) return@forEachIndexed
                 val icon = with(density) { EMPTY_ICON.toPx() }
                 if (cell.width < icon || cell.height < icon) return@forEachIndexed
+                // In the middle of a slanting cell's corners, where its room is, not of the box round it.
+                val boxed = layout.isBoxAt(index)
+                if (!boxed && thickness(layout.shapes[index]) < icon) return@forEachIndexed
+                val middle = if (boxed) Pt(cell.centerX, cell.centerY) else middleOf(layout.shapes[index])
                 Icon(
                     Icons.Filled.AddPhotoAlternate,
                     contentDescription = null,
                     tint = EmptyIconColor,
                     modifier = Modifier
-                        .offset { IntOffset((cell.centerX - icon / 2).roundToInt(), (cell.centerY - icon / 2).roundToInt()) }
+                        .offset { IntOffset((middle.x - icon / 2).roundToInt(), (middle.y - icon / 2).roundToInt()) }
                         .size(EMPTY_ICON),
                 )
             }
@@ -262,16 +326,23 @@ fun CollageCanvas(
 /** A ring round cell [index], in [color]: solid for the selected cell, dashed for one waiting to trade its photo. */
 private fun DrawScope.outline(layout: CollageLayout, index: Int, color: Color, width: Float, dashed: Boolean) {
     val cell: CellBox = layout.cells.getOrNull(index) ?: return
+    val style = Stroke(
+        width = width,
+        pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(width * 4, width * 3)) else null,
+    )
+    if (!layout.isBoxAt(index)) {
+        // Inside the shape by half the line, as the box's ring is.
+        val shape = insetShape(layout.shapes[index], width / 2)
+        drawPath(shapePath(shape, max(0f, layout.corner - width / 2)).asComposePath(), color, style = style)
+        return
+    }
     val radius = layout.cornerOf(index)
     drawRoundRect(
         color = color,
         topLeft = Offset(cell.left + width / 2, cell.top + width / 2),
         size = Size(max(0f, cell.width - width), max(0f, cell.height - width)),
         cornerRadius = CornerRadius(radius, radius),
-        style = Stroke(
-            width = width,
-            pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(width * 4, width * 3)) else null,
-        ),
+        style = style,
     )
 }
 

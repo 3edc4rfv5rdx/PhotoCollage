@@ -36,6 +36,8 @@ data class EditorState(
     val selected: Int? = null,
     /** While a swap waits for its second cell: the first. */
     val swapFrom: Int? = null,
+    /** The cut whose ends are shown, to tilt it by: its path in the tree, or null. Never with a cell selected. */
+    val cut: List<Boolean>? = null,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
     /** Photos being copied in or a collage being drawn: the editor waits. */
@@ -220,15 +222,22 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         }
         val leaf = history.current.leaves.getOrNull(index) ?: return false
         if (leaf.photo == null) {
-            _state.value = s.copy(selected = index)
+            _state.value = s.copy(selected = index, cut = null)
             return true
         }
-        _state.value = s.copy(selected = if (s.selected == index) null else index)
+        _state.value = s.copy(selected = if (s.selected == index) null else index, cut = null)
         return false
     }
 
+    /** A tap on the cut at [path]: its ends shown, to tilt it by, or hidden again if they were; no cell stays selected. */
+    fun tapCut(path: List<Boolean>) {
+        if (history.current.root.cutAt(path) == null) return
+        val s = _state.value
+        _state.value = s.copy(cut = if (s.cut == path) null else path, selected = null, swapFrom = null)
+    }
+
     fun deselect() {
-        _state.value = _state.value.copy(selected = null, swapFrom = null)
+        _state.value = _state.value.copy(selected = null, swapFrom = null, cut = null)
     }
 
     /** The selected cell waits for a tap on a second, to trade photos with it. */
@@ -264,6 +273,16 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     fun turnSelected() = onSelected { c, i -> c.mapPhoto(i) { it.turned() } }
 
+    /** The selected cell cut by a slanting cut (see [withSlant]), whose ends are then shown to tilt it by. */
+    fun slantSelected() {
+        val i = _state.value.selected ?: return
+        val now = history.current
+        if (!now.canSlant(i)) return
+        push(now.withSlant(i))
+        // The cell's way in the tree is the new cut's.
+        _state.value = _state.value.copy(selected = null, cut = now.root.pathOf(i))
+    }
+
     private inline fun onSelected(change: (Collage, Int) -> Collage) {
         val i = _state.value.selected ?: return
         push(change(history.current, i))
@@ -275,7 +294,8 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     fun applyTemplate(root: Node) {
         val photos = history.current.photos().size
         push(history.current.withLayout(root))
-        _state.value = _state.value.copy(selected = null, swapFrom = null)
+        // A cut's way in the old tree may lead to another cut in the new one.
+        _state.value = _state.value.copy(selected = null, swapFrom = null, cut = null)
         if (photos > root.leafCount) say(Notice(R.string.photos_left_out, listOf(photos - root.leafCount)))
     }
 
@@ -332,7 +352,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun replaceCollage(collage: Collage, draftId: String?, draft: Collage? = null) {
         history.reset(collage)
-        _state.value = _state.value.copy(selected = null, swapFrom = null, draftId = draftId, draft = draft)
+        _state.value = _state.value.copy(selected = null, swapFrom = null, cut = null, draftId = draftId, draft = draft)
         publish()
     }
 
@@ -381,10 +401,10 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     fun beginGesture() = history.begin()
 
-    /** A cut dragged to [ratio]; it stops short of making a cell too small to touch. */
-    fun moveDivider(path: List<Boolean>, ratio: Float) {
+    /** A cut dragged to cross its box at [ratio] and [ratio2]; it stops short of making a cell too small to touch. */
+    fun moveCut(path: List<Boolean>, ratio: Float, ratio2: Float) {
         val now = history.current
-        val next = now.copy(root = now.root.withRatio(path, ratio))
+        val next = now.copy(root = now.root.withCut(path, ratio, ratio2))
         if (!now.cellsStayBigEnough(next)) return
         history.live(next)
         publish()
@@ -424,9 +444,9 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         if (history.redo()) afterJump()
     }
 
-    /** After a jump through history no cell is where it was: the selection goes. */
+    /** After a jump through history no cell or cut is where it was: the selection goes. */
     private fun afterJump() {
-        _state.value = _state.value.copy(selected = null, swapFrom = null)
+        _state.value = _state.value.copy(selected = null, swapFrom = null, cut = null)
         publish()
     }
 
@@ -437,6 +457,7 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = s.copy(
             selected = s.selected?.takeIf { it < count },
             swapFrom = s.swapFrom?.takeIf { it < count },
+            cut = s.cut?.takeIf { collage.root.cutAt(it) != null },
         )
         publish()
     }

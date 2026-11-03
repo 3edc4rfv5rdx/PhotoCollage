@@ -31,6 +31,7 @@ private fun nodeJson(node: Node): JSONObject = when (node) {
     is Split -> JSONObject()
         .put("dir", node.dir.name)
         .put("ratio", node.ratio.toDouble())
+        .apply { if (!node.straight) put("ratio2", node.ratio2.toDouble()) }
         .put("first", nodeJson(node.first))
         .put("second", nodeJson(node.second))
 }
@@ -72,11 +73,15 @@ fun collageFromJson(text: String, exists: (String) -> Boolean): Collage? = runCa
 
 private fun nodeFrom(json: JSONObject, exists: (String) -> Boolean): Node {
     if (!json.has("dir")) return Leaf(json.optJSONObject("photo")?.let { cellFrom(it, exists) })
+    val ratio = json.getDouble("ratio").toFloat()
+    // A straight cut, as every cut was before one could slant, has no second end of its own.
+    val (a, b) = cutRatios(ratio, json.optDouble("ratio2", ratio.toDouble()).toFloat())
     return Split(
         dir = Dir.valueOf(json.getString("dir")),
-        ratio = json.getDouble("ratio").toFloat().coerceIn(MIN_RATIO, 1f - MIN_RATIO),
+        ratio = a,
         first = nodeFrom(json.getJSONObject("first"), exists),
         second = nodeFrom(json.getJSONObject("second"), exists),
+        ratio2 = b,
     )
 }
 

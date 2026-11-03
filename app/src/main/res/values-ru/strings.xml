@@ -77,6 +77,7 @@
     <string name="mirror">Отразить</string>
     <string name="split_across">На столбцы</string>
     <string name="split_down">На строки</string>
+    <string name="split_slant">Наискось</string>
     <string name="clear_photo">Убрать</string>
     <string name="remove_cell">Удалить ячейку</string>
     <string name="done">Готово</string>

@@ -72,24 +72,28 @@ private fun chain(parts: List<Node>, dir: Dir): Node =
 
 /**
  * This layout turned a quarter clockwise: a cut side by side becomes one
- * above the other, its left part on top; a cut one above the other becomes
- * one side by side, its lower part now on the left.
+ * above the other, its left part on top, the end that was at the bottom now
+ * at the left; a cut one above the other becomes one side by side, its lower
+ * part now on the left, the end that was at the left now at the top.
  */
 fun Node.turnedClockwise(): Node = when (this) {
     is Leaf -> this
     is Split -> if (dir == Dir.ROW) {
-        Split(Dir.COLUMN, ratio, first.turnedClockwise(), second.turnedClockwise())
+        Split(Dir.COLUMN, ratio2, first.turnedClockwise(), second.turnedClockwise(), ratio)
     } else {
-        Split(Dir.ROW, 1f - ratio, second.turnedClockwise(), first.turnedClockwise())
+        Split(Dir.ROW, 1f - ratio, second.turnedClockwise(), first.turnedClockwise(), 1f - ratio2)
     }
 }
 
-/** This layout mirrored left for right: a cut side by side swaps its parts; one above the other keeps them. */
+/**
+ * This layout mirrored left for right: a cut side by side swaps its parts;
+ * one above the other keeps them and swaps its ends.
+ */
 fun Node.mirrored(): Node = when (this) {
     is Leaf -> this
     is Split -> if (dir == Dir.ROW) {
-        Split(Dir.ROW, 1f - ratio, second.mirrored(), first.mirrored())
+        Split(Dir.ROW, 1f - ratio, second.mirrored(), first.mirrored(), 1f - ratio2)
     } else {
-        Split(Dir.COLUMN, ratio, first.mirrored(), second.mirrored())
+        Split(Dir.COLUMN, ratio2, first.mirrored(), second.mirrored(), ratio)
     }
 }

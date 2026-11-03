@@ -28,8 +28,8 @@ class GeometryTest {
     fun theDividerLiesInTheMiddleOfTheGap() {
         val collage = Collage(root = Split(Dir.ROW, 0.5f, Leaf(), Leaf()), gap = 0.1f)
         val divider = layoutOf(collage, 100f, 200f).dividers.single()
-        assertEquals(50f, divider.at, eps)
-        assertEquals(0.5f, divider.ratioAt(50f, 0f), eps)
+        assertEquals(50f, divider.from.x, eps)
+        assertEquals(0.5f to 0.5f, divider.shiftedTo(50f, 0f))
         assertEquals(emptyList<Boolean>(), divider.path)
     }
 
@@ -193,12 +193,12 @@ class GeometryTest {
     fun aDragMayNotSqueezeACellUnderTheSmallestButMayWidenOneAlreadyThere() {
         val half = Collage(root = Split(Dir.ROW, 0.5f, Leaf(), Leaf()), gap = 0f, aspect = Aspect.SQUARE)
         // With no gap, the 8 % MIN_RATIO lets a cut go to still leaves a cell big enough.
-        assertTrue(half.cellsStayBigEnough(half.copy(root = half.root.withRatio(emptyList(), 0.08f))))
+        assertTrue(half.cellsStayBigEnough(half.copy(root = half.root.withCut(emptyList(), 0.08f, 0.08f))))
         // A gap that leaves 2 % of a cell: no smaller, but wider is allowed.
-        val squeezed = half.copy(root = half.root.withRatio(emptyList(), 0.08f), gap = 0.06f)
+        val squeezed = half.copy(root = half.root.withCut(emptyList(), 0.08f, 0.08f), gap = 0.06f)
         assertTrue(squeezed.smallestCell() < MIN_CELL)
         assertFalse(squeezed.cellsStayBigEnough(squeezed.copy(gap = 0.07f)))
-        assertTrue(squeezed.cellsStayBigEnough(squeezed.copy(root = squeezed.root.withRatio(emptyList(), 0.3f))))
+        assertTrue(squeezed.cellsStayBigEnough(squeezed.copy(root = squeezed.root.withCut(emptyList(), 0.3f, 0.3f))))
     }
 
     @Test

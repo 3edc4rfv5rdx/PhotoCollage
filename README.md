@@ -19,9 +19,11 @@ save or share.**
   every app that hands out images, PhotoBox among them; or shared to
   PhotoCollage from another app.
 - **Layouts**: ready-made ones for 1 to 7 photos, turned and mirrored in the
-  Layout dialog; any cell can be cut in two, across or down, or removed, up
-  to 16 cells.
-- **Borders**: drag a gap between cells to move it.
+  Layout dialog; any cell can be cut in two, across, down or diagonally, or
+  removed, up to 16 cells. A cell with a photo cut diagonally has the photo on
+  both sides, each framed on its own.
+- **Borders**: drag a gap between cells to move it, slant and all; tap it for
+  a dot on each end and drag a dot to tilt it, as far as corner to corner.
 - **Photo in its cell**: drag to move it, pinch to zoom, turn two fingers to
   tilt it to any angle, turn it a quarter at a time — which also straightens a
   tilt — replace or clear it; Photo info says where it came from — folder and

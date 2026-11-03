@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.BorderOuter
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -79,6 +80,7 @@ import xx.photocollage.MAX_BLEND
 import xx.photocollage.MAX_CORNER
 import xx.photocollage.MAX_GAP
 import xx.photocollage.R
+import xx.photocollage.canSlant
 import xx.photocollage.canSplit
 import xx.photocollage.hasWorkBeyond
 import xx.photocollage.MediaAccess
@@ -130,6 +132,7 @@ private enum class CellTool(val icon: ImageVector, @param:StringRes val text: In
     TURN(Icons.AutoMirrored.Filled.RotateRight, R.string.turn),
     SPLIT_ACROSS(Icons.Filled.ViewColumn, R.string.split_across),
     SPLIT_DOWN(Icons.Filled.ViewAgenda, R.string.split_down),
+    SLANT(Icons.Filled.ContentCut, R.string.split_slant),
     CLEAR(Icons.Filled.HideImage, R.string.clear_photo),
     REMOVE(Icons.Filled.DeleteOutline, R.string.remove_cell),
     INFO(Icons.Filled.Info, R.string.photo_info),
@@ -144,6 +147,7 @@ private fun CellTool.enabled(collage: Collage, cell: Int): Boolean {
         CellTool.TURN, CellTool.CLEAR, CellTool.INFO -> hasPhoto
         CellTool.SPLIT_ACROSS -> collage.canSplit(cell, Dir.ROW)
         CellTool.SPLIT_DOWN -> collage.canSplit(cell, Dir.COLUMN)
+        CellTool.SLANT -> collage.canSlant(cell)
         CellTool.REMOVE -> collage.cellCount > 1
     }
 }
@@ -207,7 +211,7 @@ private fun EditorScreen(
         }
     }
 
-    BackHandler(enabled = state.selected != null || state.swapFrom != null) { vm.deselect() }
+    BackHandler(enabled = state.selected != null || state.swapFrom != null || state.cut != null) { vm.deselect() }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
@@ -227,6 +231,7 @@ private fun EditorScreen(
                             CellTool.TURN -> vm.turnSelected()
                             CellTool.SPLIT_ACROSS -> vm.splitSelected(Dir.ROW)
                             CellTool.SPLIT_DOWN -> vm.splitSelected(Dir.COLUMN)
+                            CellTool.SLANT -> vm.slantSelected()
                             CellTool.CLEAR -> vm.clearSelected()
                             CellTool.REMOVE -> vm.removeSelected()
                             CellTool.INFO -> dialog = Dialog.PHOTO_INFO

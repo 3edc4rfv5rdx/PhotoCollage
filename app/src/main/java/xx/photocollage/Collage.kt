@@ -114,11 +114,40 @@ data class Leaf(val photo: CellPhoto? = null) : Node {
 }
 
 /**
- * A straight cut: [first] takes [ratio] of the space along [dir], [second]
- * the rest.
+ * A cut: [first] takes the space along [dir] up to it, [second] the rest. It
+ * crosses the box round the space at [ratio] of the way along one side and
+ * [ratio2] along the other — a [Dir.ROW] cut the top side and then the
+ * bottom one, a [Dir.COLUMN] cut the left and then the right — so it is
+ * straight where the two are the same and slants where they are not.
  */
-data class Split(val dir: Dir, val ratio: Float, val first: Node, val second: Node) : Node {
+data class Split(
+    val dir: Dir,
+    val ratio: Float,
+    val first: Node,
+    val second: Node,
+    val ratio2: Float = ratio,
+) : Node {
     override val leafCount: Int = first.leafCount + second.leafCount
+
+    /** Whether the cut runs straight across, as every cut did before one could slant. */
+    val straight: Boolean get() = ratio == ratio2
+}
+
+/**
+ * [ratio] and [ratio2] held where a cut may lie: each end on its side of the
+ * box, anywhere from corner to corner, and the cut's middle [MIN_RATIO] off
+ * either end of the box — for a straight cut, the cut itself.
+ */
+fun cutRatios(ratio: Float, ratio2: Float): Pair<Float, Float> {
+    val a = ratio.coerceIn(0f, 1f)
+    val b = ratio2.coerceIn(0f, 1f)
+    val middle = (a + b) / 2
+    val shift = when {
+        middle < MIN_RATIO -> MIN_RATIO - middle
+        middle > 1f - MIN_RATIO -> 1f - MIN_RATIO - middle
+        else -> 0f
+    }
+    return (a + shift) to (b + shift)
 }
 
 /**
@@ -159,7 +188,7 @@ const val MAX_CORNER = 0.12f
 const val MAX_BLEND = 0.08f
 const val MAX_ZOOM = 6f
 
-/** The smallest part of a cut either side may be squeezed to. */
+/** The smallest part of a cut either side may be squeezed to, measured at the cut's middle. */
 const val MIN_RATIO = 0.08f
 
 /** How many cells a collage may be cut into. */
@@ -262,6 +291,50 @@ fun Collage.withSplit(index: Int, dir: Dir): Collage = copy(root = root.splitLea
 fun Collage.canSplit(index: Int, dir: Dir): Boolean =
     cellCount < MAX_CELLS && cellsStayBigEnough(withSplit(index, dir))
 
+/** Where a slanting cut made by [withSlant] crosses the side it starts from and the one it ends on. */
+const val SLANT_FROM = 0.7f
+const val SLANT_TO = 0.3f
+
+/**
+ * The collage with cell [index] cut in two by a slanting cut: across the
+ * cell's longer way, from [SLANT_FROM] of one side to [SLANT_TO] of the other.
+ * A photo there goes into both halves, framed afresh for each, to be moved
+ * apart; an empty cell gives two empty ones.
+ */
+fun Collage.withSlant(index: Int): Collage {
+    val box = layoutOf(this, ratio, 1f).cells[index]
+    val dir = if (box.width >= box.height) Dir.ROW else Dir.COLUMN
+    return copy(
+        root = root.mapLeaf(index) {
+            val photo = it.photo?.let(::refit)
+            Split(dir, SLANT_FROM, Leaf(photo), Leaf(photo), SLANT_TO)
+        },
+    )
+}
+
+/** Whether cell [index] may be cut by a slanting cut; see [canSplit]. */
+fun Collage.canSlant(index: Int): Boolean = cellCount < MAX_CELLS && cellsStayBigEnough(withSlant(index))
+
+/** The way from the root to the [index]th cell, in [leaves] order: firsts and seconds, false for first. */
+fun Node.pathOf(index: Int): List<Boolean> {
+    require(index in 0 until leafCount) { "cell $index of $leafCount" }
+    return when (this) {
+        is Leaf -> emptyList()
+        is Split -> if (index < first.leafCount) {
+            listOf(false) + first.pathOf(index)
+        } else {
+            listOf(true) + second.pathOf(index - first.leafCount)
+        }
+    }
+}
+
+/** The cut at [path], or null when it leads to a cell or nowhere. */
+fun Node.cutAt(path: List<Boolean>): Split? {
+    if (this !is Split) return null
+    if (path.isEmpty()) return this
+    return (if (path[0]) second else first).cutAt(path.drop(1))
+}
+
 /**
  * This tree without its [index]th cell: the cut that held it is replaced by its
  * other part, which takes the room. Null when the cell is the only one.
@@ -282,14 +355,21 @@ fun Node.removeLeaf(index: Int): Node? {
 
 /**
  * The cut at [path] — firsts and seconds from the root, false for first —
- * moved to [ratio], kept off the edges by [MIN_RATIO]. A path that leads to
- * no cut leaves the tree as it is.
+ * moved to cross its box at [ratio] and [ratio2], held as [cutRatios] says.
+ * A path that leads to no cut leaves the tree as it is.
  */
-fun Node.withRatio(path: List<Boolean>, ratio: Float): Node {
+fun Node.withCut(path: List<Boolean>, ratio: Float, ratio2: Float): Node {
     if (this !is Split) return this
-    if (path.isEmpty()) return copy(ratio = ratio.coerceIn(MIN_RATIO, 1f - MIN_RATIO))
+    if (path.isEmpty()) {
+        val (a, b) = cutRatios(ratio, ratio2)
+        return copy(ratio = a, ratio2 = b)
+    }
     val rest = path.drop(1)
-    return if (path[0]) copy(second = second.withRatio(rest, ratio)) else copy(first = first.withRatio(rest, ratio))
+    return if (path[0]) {
+        copy(second = second.withCut(rest, ratio, ratio2))
+    } else {
+        copy(first = first.withCut(rest, ratio, ratio2))
+    }
 }
 
 /** [cell] with its framing put back to the whole photo, as for a cell of another shape. */

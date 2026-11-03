@@ -56,6 +56,21 @@ fun drawCollage(
         val radius = layout.cornerOf(index)
         val photo = leaf.photo
         val bitmap = photo?.let { bitmapOf(it.photo) }
+        if (!layout.isBoxAt(index)) {
+            shapePath(drawnShape(layout, index), layout.corner, path)
+            if (photo == null || bitmap == null) {
+                paint.color = emptyColor
+                canvas.drawPath(path, paint)
+            } else {
+                canvas.withSave {
+                    clipPath(path)
+                    photoMatrix(photo, bitmap, layout.frameOf(index), matrix)
+                    drawBitmap(bitmap, matrix, paint)
+                }
+                onDrawn(bitmap)
+            }
+            return@forEachIndexed
+        }
         // Square corners are cut without smoothing: two cells meet on a fraction of a pixel,
         // and two smoothed edges there would each cover it part way, the background
         // showing through as a hairline even with no gap.
@@ -91,6 +106,11 @@ fun drawCollage(
         if (cell.width <= 0f || cell.height <= 0f) return@forEachIndexed
         val bitmap = bitmapOf(photo.photo) ?: return@forEachIndexed
         photoMatrix(photo, bitmap, layout.frameOf(index), matrix)
+        if (!layout.isBoxAt(index)) {
+            drawShapeBands(canvas, layout, index, bitmap, matrix, paint, mask, path, extent)
+            onDrawn(bitmap)
+            return@forEachIndexed
+        }
         // With rounded corners, the bands end on the cell's rounding carried out by the
         // blend, not square past it: the fade goes round the cell as its outline does.
         val radius = layout.cornerOf(index)
@@ -121,6 +141,93 @@ fun drawCollage(
         }
         onDrawn(bitmap)
     }
+}
+
+/**
+ * The fade bands of cell [index], a shape a slanting cut made, its photo
+ * [bitmap] placed by [matrix]: one past each of its sides, within [extent],
+ * fading out away from the side; with rounded corners, within the shape's
+ * rounding carried out by the blend, as a box's bands are.
+ */
+private fun drawShapeBands(
+    canvas: Canvas,
+    layout: CollageLayout,
+    index: Int,
+    bitmap: Bitmap,
+    matrix: Matrix,
+    paint: Paint,
+    mask: Paint,
+    path: Path,
+    extent: Box,
+) {
+    val shape = layout.shapes[index]
+    val round = layout.corner > 0f
+    val around = Path()
+    if (round) shapePath(insetShape(shape, -layout.blend), layout.corner + layout.blend, around)
+    shapeBands(shape, layout.blend, extent).forEach { band ->
+        val area = RectF(band.box.left, band.box.top, band.box.right, band.box.bottom)
+        val layer = canvas.saveLayer(area, null)
+        canvas.clipRect(area)
+        shapePath(band.corners, 0f, path)
+        canvas.clipPath(path)
+        if (round) canvas.clipPath(around)
+        canvas.drawBitmap(bitmap, matrix, paint)
+        mask.shader = LinearGradient(
+            band.from.x, band.from.y, band.to.x, band.to.y,
+            BLEND_EDGE_ALPHA, 0, Shader.TileMode.CLAMP,
+        )
+        canvas.drawRect(area, mask)
+        canvas.restoreToCount(layer)
+    }
+}
+
+/**
+ * A band past one side of a shape, where its photo fades over the
+ * neighbour: [corners] the band itself, [box] the part of the box round it
+ * within the room the cells take, the fade running from [from] on the side
+ * to [to] at the band's far edge.
+ */
+internal data class ShapeBand(val corners: Shape, val box: Box, val from: Pt, val to: Pt)
+
+/**
+ * The bands [blend] pixels wide past each side of [shape], as far as they
+ * lie within [extent]: none on a side along the collage's edge, where there
+ * is no neighbour, as for a box's.
+ */
+internal fun shapeBands(shape: Shape, blend: Float, extent: Box): List<ShapeBand> = shape.indices.mapNotNull { i ->
+    val a = shape[i]
+    val b = shape[(i + 1) % shape.size]
+    val out = inward(a, b) * -blend
+    val corners = listOf(a, b, b + out, a + out)
+    val all = boundsOf(corners)
+    val box = Box(max(all.left, extent.left), max(all.top, extent.top), min(all.right, extent.right), min(all.bottom, extent.bottom))
+    if (box.width <= 0f || box.height <= 0f) null else ShapeBand(corners, box, a, a + out)
+}
+
+/**
+ * Cell [index]'s shape as it is drawn: with no gap, half a pixel larger all
+ * round, so where two smoothed slanting sides meet each covers the other
+ * rather than letting the background through between them.
+ */
+private fun drawnShape(layout: CollageLayout, index: Int): Shape =
+    if (layout.gap < 1f) insetShape(layout.shapes[index], -SEAM_OVERLAP) else layout.shapes[index]
+
+/** How far, in pixels, a shape reaches past its outline with no gap; see [drawnShape]. */
+private const val SEAM_OVERLAP = 0.5f
+
+/** [shape] as a path into [out], its corners rounded by [radius] as [roundedCorners] does it. */
+fun shapePath(shape: Shape, radius: Float, out: Path = Path()): Path {
+    out.reset()
+    if (shape.size < 3) return out
+    roundedCorners(shape, radius).forEachIndexed { i, c ->
+        if (i == 0) out.moveTo(c.start.x, c.start.y) else out.lineTo(c.start.x, c.start.y)
+        if (c.radius > 0f) {
+            val oval = RectF(c.center.x - c.radius, c.center.y - c.radius, c.center.x + c.radius, c.center.y + c.radius)
+            out.arcTo(oval, c.startAngle, c.sweep, false)
+        }
+    }
+    out.close()
+    return out
 }
 
 /** A photo's alpha at its cell's edge in a blend band: half, so two facing bands meet even. */

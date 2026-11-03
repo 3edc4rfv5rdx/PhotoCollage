@@ -87,16 +87,16 @@ class CollageTest {
 
     @Test
     fun ratioIsKeptOffTheEdges() {
-        val root = threeCells().root.withRatio(listOf(true), 0.99f) as Split
+        val root = threeCells().root.withCut(listOf(true), 0.99f, 0.99f) as Split
         assertEquals(1f - MIN_RATIO, (root.second as Split).ratio, 1e-6f)
-        val left = threeCells().root.withRatio(emptyList(), -1f) as Split
+        val left = threeCells().root.withCut(emptyList(), -1f, -1f) as Split
         assertEquals(MIN_RATIO, left.ratio, 1e-6f)
     }
 
     @Test
     fun aPathToNoCutChangesNothing() {
         val collage = threeCells()
-        assertEquals(collage.root, collage.root.withRatio(listOf(false, true), 0.3f))
+        assertEquals(collage.root, collage.root.withCut(listOf(false, true), 0.3f, 0.3f))
     }
 
     @Test
