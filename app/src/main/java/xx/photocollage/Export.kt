@@ -15,6 +15,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
 
 /** How a saved collage is compressed: high enough that the photos in it lose nothing to the eye. */
 private const val JPEG_QUALITY = 92
@@ -25,18 +26,31 @@ private const val ALBUM = "PhotoCollage"
 /** That folder as the user knows it. */
 const val DEFAULT_FOLDER_LABEL = "Pictures/$ALBUM"
 
+/** What came of drawing a collage to be saved. */
+sealed interface Rendered {
+    data class Done(val bitmap: Bitmap) : Rendered
+
+    /** No memory for the image itself at its size. */
+    data object TooLarge : Rendered
+
+    /** [count] photos could not be read at any size: the image would have lacked them, so there is none. */
+    data class Unreadable(val count: Int) : Rendered
+}
+
 /**
  * [collage] drawn at its [savedSize]. Each photo is
  * decoded afresh at the size its cell shows it at — sharper than the
  * editor's copies — and let go as soon as it is drawn, so only one is in
- * memory at a time. Null when memory runs out.
+ * memory at a time. A photo that will not decode at that size is tried
+ * smaller; one that will not at any is no image at all, rather than an
+ * image with an empty cell where the editor showed a photo.
  */
-fun renderCollage(context: Context, collage: Collage): Bitmap? {
+fun renderCollage(context: Context, collage: Collage): Rendered {
     val (width, height) = collage.savedSize()
     val bitmap = try {
         createBitmap(width, height)
     } catch (e: OutOfMemoryError) {
-        return null
+        return Rendered.TooLarge
     }
     val layout = layoutOf(collage, width.toFloat(), height.toFloat())
     // The size each photo is needed at, by its cell: what its framing shows it at.
@@ -47,6 +61,7 @@ fun renderCollage(context: Context, collage: Collage): Bitmap? {
         val (w, h) = cell.clamped(box.width, box.height).shownSize(box.width, box.height)
         needed[cell.photo] = max(needed[cell.photo] ?: 0, ceil(max(w, h)).toInt())
     }
+    val unreadable = HashSet<Photo>()
     drawCollage(
         Canvas(bitmap),
         collage,
@@ -54,8 +69,17 @@ fun renderCollage(context: Context, collage: Collage): Bitmap? {
         height.toFloat(),
         layout,
         onDrawn = { it.recycle() },
-    ) { photo -> decodePhoto(photoFile(context, photo), needed[photo] ?: max(width, height)) }
-    return bitmap
+    ) { photo ->
+        // Never more than the photo has: past that every size is the same whole photo again.
+        val start = min(needed[photo] ?: max(width, height), max(photo.width, photo.height))
+        decodeShrinking(start) { decodePhoto(photoFile(context, photo), it) }
+            .also { if (it == null) unreadable += photo }
+    }
+    if (unreadable.isNotEmpty()) {
+        bitmap.recycle()
+        return Rendered.Unreadable(unreadable.size)
+    }
+    return Rendered.Done(bitmap)
 }
 
 /**

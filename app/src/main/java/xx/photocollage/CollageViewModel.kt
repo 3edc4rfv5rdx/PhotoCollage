@@ -466,14 +466,16 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         val collage = history.current
         setBusy(true)
         viewModelScope.launch {
-            val bitmap = withContext(Dispatchers.Default) {
+            val rendered = withContext(Dispatchers.Default) {
                 photoLock.withLock { renderCollage(context, collage) }
             }
-            if (bitmap == null) {
-                say(Notice(R.string.image_too_large))
-            } else {
-                withContext(Dispatchers.IO) { then(bitmap) }
-                bitmap.recycle()
+            when (rendered) {
+                is Rendered.Done -> {
+                    withContext(Dispatchers.IO) { then(rendered.bitmap) }
+                    rendered.bitmap.recycle()
+                }
+                Rendered.TooLarge -> say(Notice(R.string.image_too_large))
+                is Rendered.Unreadable -> say(Notice(R.string.image_photos_unreadable, listOf(rendered.count)))
             }
             setBusy(false)
         }

@@ -85,6 +85,24 @@ fun decodePhoto(file: File, minLong: Int): Bitmap? = try {
     null
 }
 
+/** The long side below which [decodeShrinking] stops asking for less: a photo smaller than that is no photo to show. */
+const val MIN_DECODE_LONG = 256
+
+/**
+ * What [decode] makes at [minLong] pixels on the long side, or failing that —
+ * memory short, most likely — at half of it, and so on down to
+ * [MIN_DECODE_LONG]: a photo a little soft beats a cell left empty. Null when
+ * every size failed.
+ */
+internal fun <T : Any> decodeShrinking(minLong: Int, decode: (Int) -> T?): T? {
+    var target = minLong
+    while (true) {
+        decode(target)?.let { return it }
+        if (target / 2 < MIN_DECODE_LONG) return null
+        target /= 2
+    }
+}
+
 /** The largest power of two [long] can be divided by and still be at least [minLong]. */
 internal fun sampleSize(long: Int, minLong: Int): Int {
     var sample = 1
@@ -118,7 +136,13 @@ private fun upright(bitmap: Bitmap, orientation: Int): Bitmap {
         ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(-90f)
         else -> return bitmap
     }
-    val turned = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    val turned = try {
+        Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    } catch (e: OutOfMemoryError) {
+        // Let go of the photo at once, so a try at a smaller size has its room.
+        bitmap.recycle()
+        throw e
+    }
     if (turned !== bitmap) bitmap.recycle()
     return turned
 }
