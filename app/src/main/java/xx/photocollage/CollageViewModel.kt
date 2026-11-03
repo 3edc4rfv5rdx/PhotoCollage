@@ -462,9 +462,9 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     /** The collage into the folder Settings names, under [name] as typed; see [jpegFileName]. */
     fun saveImage(name: String) = rendering { bitmap ->
         val folder = AppSettings.saveFolder.value
-        val fileName = jpegFileName(name)
-        if (saveImage(context, bitmap, folder, fileName)) {
-            say(Notice(R.string.image_saved, listOf("${folderLabel(folder)}/$fileName")))
+        val saved = saveImage(context, bitmap, folder, jpegFileName(name))
+        if (saved != null) {
+            say(Notice(R.string.image_saved, listOf("${folderLabel(folder)}/$saved")))
         } else {
             say(Notice(R.string.image_save_failed))
         }

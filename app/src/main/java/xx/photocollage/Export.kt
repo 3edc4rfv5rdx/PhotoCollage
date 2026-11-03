@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import android.provider.MediaStore
 import androidx.core.graphics.createBitmap
 import java.io.File
@@ -85,10 +86,20 @@ fun renderCollage(context: Context, collage: Collage): Rendered {
 /**
  * Saves [bitmap] as a JPEG into [folder] — a folder the user picked in
  * Settings, by its tree URI — or into Pictures/PhotoCollage when null.
- * Whether it was written.
+ * The name it was saved under, which the system numbers when [fileName] is
+ * taken; null when it was not written.
  */
-fun saveImage(context: Context, bitmap: Bitmap, folder: Uri?, fileName: String): Boolean =
-    if (folder == null) saveToPictures(context, bitmap, fileName) else saveToFolder(context, bitmap, folder, fileName)
+fun saveImage(context: Context, bitmap: Bitmap, folder: Uri?, fileName: String): String? {
+    val uri = if (folder == null) saveToPictures(context, bitmap, fileName) else saveToFolder(context, bitmap, folder, fileName)
+    return uri?.let { displayName(context, it) ?: fileName }
+}
+
+/** The name the file at [uri] goes by, as its provider says; null if it will not say. */
+private fun displayName(context: Context, uri: Uri): String? = runCatching {
+    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0) else null
+    }
+}.getOrNull()
 
 /** The folder [saveImage] writes into, as the user knows it: the path within its storage. */
 fun folderLabel(folder: Uri?): String {
@@ -98,8 +109,8 @@ fun folderLabel(folder: Uri?): String {
     return id.substringAfter(':').ifEmpty { "/" }
 }
 
-/** Through MediaStore, which needs no permission for its own Pictures/ folder. */
-private fun saveToPictures(context: Context, bitmap: Bitmap, fileName: String): Boolean {
+/** Through MediaStore, which needs no permission for its own Pictures/ folder. The file written, or null. */
+private fun saveToPictures(context: Context, bitmap: Bitmap, fileName: String): Uri? {
     val resolver = context.contentResolver
     val values = ContentValues().apply {
         put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
@@ -108,36 +119,36 @@ private fun saveToPictures(context: Context, bitmap: Bitmap, fileName: String): 
         // Hidden from other apps until it is written whole.
         put(MediaStore.Images.Media.IS_PENDING, 1)
     }
-    val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
+    val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return null
     return try {
         writeJpeg(context, bitmap, uri)
         resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
-        true
+        uri
     } catch (e: Exception) {
         resolver.delete(uri, null, null)
-        false
+        null
     }
 }
 
 /**
- * Into a folder the user granted through the system's folder picker. False
- * when the grant is gone or the folder is: the file is not made elsewhere
- * behind their back.
+ * Into a folder the user granted through the system's folder picker. The
+ * file written, or null when the grant is gone or the folder is: the file is
+ * not made elsewhere behind their back.
  */
-private fun saveToFolder(context: Context, bitmap: Bitmap, tree: Uri, fileName: String): Boolean {
+private fun saveToFolder(context: Context, bitmap: Bitmap, tree: Uri, fileName: String): Uri? {
     val resolver = context.contentResolver
     val doc = try {
         val parent = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
         DocumentsContract.createDocument(resolver, parent, "image/jpeg", fileName)
     } catch (e: Exception) {
         null
-    } ?: return false
+    } ?: return null
     return try {
         writeJpeg(context, bitmap, doc)
-        true
+        doc
     } catch (e: Exception) {
         runCatching { DocumentsContract.deleteDocument(resolver, doc) }
-        false
+        null
     }
 }
 
