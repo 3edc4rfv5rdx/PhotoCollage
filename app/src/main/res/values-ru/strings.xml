@@ -70,6 +70,7 @@
     <string name="draft_open_failed">Не удалось открыть черновик</string>
     <string name="image_saved">Сохранено</string>
     <string name="image_save_failed">Не удалось сохранить изображение</string>
+    <string name="save_folder_unavailable">Папка для сохранения недоступна</string>
     <string name="image_too_large">Не хватает памяти для такого размера изображения</string>
     <string name="image_photos_unreadable">Не сохранено из-за нечитаемых фото</string>
 </resources>

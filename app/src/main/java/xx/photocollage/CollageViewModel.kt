@@ -493,11 +493,11 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
     /** The collage into the folder Settings names, under [name] as typed; see [jpegFileName]. */
     fun saveImage(name: String) = rendering { bitmap ->
         val folder = AppSettings.saveFolder.value
-        val saved = saveImage(context, bitmap, folder, jpegFileName(name))
-        if (saved != null) {
-            say(Notice(R.string.image_saved, listOf("${folderLabel(folder)}/$saved")))
-        } else {
-            say(Notice(R.string.image_save_failed))
+        when (val saved = saveImage(context, bitmap, folder, jpegFileName(name))) {
+            is SaveResult.Saved -> say(Notice(R.string.image_saved, listOf("${folderLabel(folder)}/${saved.name}")))
+            // Picked again in Settings, it takes files again: said apart from a failure the user cannot mend.
+            SaveResult.FolderUnavailable -> say(Notice(R.string.save_folder_unavailable, listOf(folderLabel(folder))))
+            SaveResult.Failed -> say(Notice(R.string.image_save_failed))
         }
     }
 

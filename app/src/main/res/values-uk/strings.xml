@@ -70,6 +70,7 @@
     <string name="draft_open_failed">Не вдалося відкрити чернетку</string>
     <string name="image_saved">Збережено</string>
     <string name="image_save_failed">Не вдалося зберегти зображення</string>
+    <string name="save_folder_unavailable">Папка для збереження недоступна</string>
     <string name="image_too_large">Не вистачає пам’яті для такого розміру зображення</string>
     <string name="image_photos_unreadable">Не збережено через нечитабельні фото</string>
 </resources>

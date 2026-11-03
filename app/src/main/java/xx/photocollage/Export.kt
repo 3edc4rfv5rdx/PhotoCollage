@@ -97,15 +97,26 @@ internal fun <T : Any> notingUnreadable(unreadable: MutableSet<Photo>, decode: (
     }
 }
 
+/** What came of saving an image. */
+sealed interface SaveResult {
+    /** Written, under [name]: the system numbers it when the name asked for is taken. */
+    data class Saved(val name: String) : SaveResult
+
+    /** The folder picked in Settings takes no file any more: its grant is gone, or the folder is. */
+    data object FolderUnavailable : SaveResult
+
+    /** Not written, for any other reason. */
+    data object Failed : SaveResult
+}
+
 /**
  * Saves [bitmap] as a JPEG into [folder] — a folder the user picked in
  * Settings, by its tree URI — or into Pictures/PhotoCollage when null.
- * The name it was saved under, which the system numbers when [fileName] is
- * taken; null when it was not written.
  */
-fun saveImage(context: Context, bitmap: Bitmap, folder: Uri?, fileName: String): String? {
-    val uri = if (folder == null) saveToPictures(context, bitmap, fileName) else saveToFolder(context, bitmap, folder, fileName)
-    return uri?.let { displayName(context, it) ?: fileName }
+fun saveImage(context: Context, bitmap: Bitmap, folder: Uri?, fileName: String): SaveResult {
+    if (folder != null) return saveToFolder(context, bitmap, folder, fileName)
+    val uri = saveToPictures(context, bitmap, fileName) ?: return SaveResult.Failed
+    return SaveResult.Saved(displayName(context, uri) ?: fileName)
 }
 
 /** The name the file at [uri] goes by, as its provider says; null if it will not say. */
@@ -146,24 +157,24 @@ private fun saveToPictures(context: Context, bitmap: Bitmap, fileName: String): 
 }
 
 /**
- * Into a folder the user granted through the system's folder picker. The
- * file written, or null when the grant is gone or the folder is: the file is
- * not made elsewhere behind their back.
+ * Into a folder the user granted through the system's folder picker. A file
+ * that cannot be made there — the grant gone, or the folder — is
+ * [SaveResult.FolderUnavailable], not made elsewhere behind their back.
  */
-private fun saveToFolder(context: Context, bitmap: Bitmap, tree: Uri, fileName: String): Uri? {
+private fun saveToFolder(context: Context, bitmap: Bitmap, tree: Uri, fileName: String): SaveResult {
     val resolver = context.contentResolver
     val doc = try {
         val parent = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
         DocumentsContract.createDocument(resolver, parent, "image/jpeg", fileName)
     } catch (e: Exception) {
         null
-    } ?: return null
+    } ?: return SaveResult.FolderUnavailable
     return try {
         writeJpeg(context, bitmap, doc)
-        doc
+        SaveResult.Saved(displayName(context, doc) ?: fileName)
     } catch (e: Exception) {
         runCatching { DocumentsContract.deleteDocument(resolver, doc) }
-        null
+        SaveResult.Failed
     }
 }
 

@@ -70,6 +70,7 @@
     <string name="draft_open_failed">Could not open the draft</string>
     <string name="image_saved">Saved</string>
     <string name="image_save_failed">Could not save the image</string>
+    <string name="save_folder_unavailable">Save folder not available</string>
     <string name="image_too_large">Not enough memory for this image size</string>
     <string name="image_photos_unreadable">Not saved because photos could not be read</string>
 </resources>
