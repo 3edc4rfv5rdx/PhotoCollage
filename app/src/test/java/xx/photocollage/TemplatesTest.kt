@@ -23,7 +23,12 @@ class TemplatesTest {
     @Test
     fun threeIsOneOverTwoAndThreeInALine() {
         // One beside two is one over two turned; three down is three side by side turned.
-        val shapes = templates(3).map { root -> boxes(root).map { (l, t, r, b) -> r - l to b - t }.sortedBy { it.first } }
+        // Sizes from the cells themselves, rounded last: from rounded edges a third comes out 34 wide.
+        val shapes = templates(3).map { root ->
+            layoutOf(Collage(root = root, gap = 0f, aspect = Aspect.SQUARE), 100f, 100f).cells
+                .map { Math.round(it.width) to Math.round(it.height) }
+                .sortedBy { it.first }
+        }
         assertEquals(listOf(listOf(50 to 50, 50 to 50, 100 to 50), listOf(33 to 100, 33 to 100, 33 to 100)), shapes)
     }
 

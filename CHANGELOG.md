@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- I: The test of the three-photo layouts measures cells before rounding them
 - F: Save draft is off while the draft already holds the collage
 - F: Save draft is back under the collage
 - F: The gap, corner and blend sliders show how far along they are as a percent
