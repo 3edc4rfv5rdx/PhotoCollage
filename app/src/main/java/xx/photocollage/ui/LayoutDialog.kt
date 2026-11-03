@@ -2,7 +2,6 @@ package xx.photocollage.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,11 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +49,9 @@ import xx.photocollage.drawCollage
 import xx.photocollage.photos
 import xx.photocollage.preset
 import xx.photocollage.savedSize
+import xx.photocollage.mirrored
 import xx.photocollage.templates
+import xx.photocollage.turnedClockwise
 
 private val PREVIEW_HEIGHT = 96.dp
 
@@ -59,10 +59,12 @@ private val PREVIEW_HEIGHT = 96.dp
 private const val PREVIEW_GAP = 0.05f
 
 /**
- * The ready-made layouts, by how many cells: a row of counts, and under it
- * each layout for the count picked, drawn in the collage's own shape on its
+ * The ready-made layouts, by how many cells: a drop-down of counts, and under
+ * it each layout for the count picked, drawn in the collage's own shape on its
  * background, the cells in the accent. The count starts at the collage's
- * own, so its photos all fit.
+ * own, so its photos all fit. Turn and Mirror, above Cancel, turn every
+ * layout a quarter clockwise and mirror it left for right — which is why no
+ * two layouts offered are one another turned or mirrored.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -70,20 +72,27 @@ fun LayoutDialog(collage: Collage, onDismiss: () -> Unit, onPick: (Node) -> Unit
     var count by rememberSaveable { mutableIntStateOf(collage.cellCount.coerceIn(TEMPLATE_COUNTS)) }
     // The cells in the accent, so the layouts stand out on any background.
     val cellColor = MaterialTheme.colorScheme.primary.toArgb()
-    val options = remember(count) { templates(count) }
+    // Every layout is shown mirrored if [mirrored], then turned a quarter clockwise [turns] times.
+    var turns by rememberSaveable { mutableIntStateOf(0) }
+    var mirrored by rememberSaveable { mutableStateOf(false) }
+    val options = remember(count, turns, mirrored) {
+        templates(count).map { root ->
+            val base = if (mirrored) root.mirrored() else root
+            (0 until turns).fold(base) { node, _ -> node.turnedClockwise() }
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.layout)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TEMPLATE_COUNTS.forEach { n ->
-                        FilterChip(selected = n == count, onClick = { count = n }, label = { Text(n.toString()) })
-                    }
-                }
+                DropdownRow(
+                    label = stringResource(R.string.photos_count),
+                    value = count.toString(),
+                    options = TEMPLATE_COUNTS.toList(),
+                    optionLabel = { it.toString() },
+                    onPick = { count = it },
+                )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     options.forEach { root ->
                         val preview = collage.copy(root = root, gap = PREVIEW_GAP, corner = 0f)
@@ -102,8 +111,36 @@ fun LayoutDialog(collage: Collage, onDismiss: () -> Unit, onPick: (Node) -> Unit
                 }
             }
         },
-        confirmButton = { DialogDismissButton(stringResource(R.string.cancel), onDismiss) },
+        confirmButton = {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // A line of their own above Cancel, the dialog's width between them.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SlimButton(stringResource(R.string.turn), Modifier.weight(1f)) { turns = (turns + 1) % 4 }
+                    // Mirrors what is shown: a mirror after the turns is the mirror first, turned back as far.
+                    SlimButton(stringResource(R.string.mirror), Modifier.weight(1f)) {
+                        mirrored = !mirrored
+                        turns = (4 - turns) % 4
+                    }
+                }
+                DialogDismissButton(stringResource(R.string.cancel), onDismiss)
+            }
+        },
     )
+}
+
+/** The height of [SlimButton]: lower than a dialog's own buttons, as it only changes what is shown. */
+private val SLIM_BUTTON_HEIGHT = 32.dp
+
+/** A dialog button in the accent, lower than [DialogDismissButton], for a tool that changes the view. */
+@Composable
+private fun SlimButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(SLIM_BUTTON_HEIGHT),
+        contentPadding = PaddingValues(horizontal = 12.dp),
+    ) {
+        Text(text, maxLines = 1)
+    }
 }
 
 /**

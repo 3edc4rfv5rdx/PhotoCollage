@@ -55,6 +55,7 @@
     <string name="swap">Поміняти</string>
     <string name="swap_hint">Торкніться комірки для обміну</string>
     <string name="turn">Повернути</string>
+    <string name="mirror">Віддзеркалити</string>
     <string name="split_across">На стовпці</string>
     <string name="split_down">На рядки</string>
     <string name="clear_photo">Прибрати</string>

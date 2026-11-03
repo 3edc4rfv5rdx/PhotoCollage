@@ -55,6 +55,7 @@
     <string name="swap">Поменять</string>
     <string name="swap_hint">Коснитесь ячейки для обмена</string>
     <string name="turn">Повернуть</string>
+    <string name="mirror">Отразить</string>
     <string name="split_across">На столбцы</string>
     <string name="split_down">На строки</string>
     <string name="clear_photo">Убрать</string>

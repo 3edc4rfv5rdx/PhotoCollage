@@ -3,6 +3,8 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- F: The Layout dialog picks the photo count from a drop-down, 1 to 7, and offers no layout that is another turned or mirrored
+- N: The Layout dialog turns and mirrors its layouts and offers more: all in a line, 1-3-1 and the like, 2-1-2 and the like
 - F: The Layout dialog draws its layouts' cells in the accent colour instead of pale grey
 - R: The dialog button's modifier is its first optional parameter, as lint asks
 - E: A photo that once failed to show in the editor is tried again instead of staying grey for the session

@@ -21,20 +21,58 @@ class TemplatesTest {
     }
 
     @Test
-    fun threeHasFourLayoutsThatLookDifferent() {
-        // One over two, one beside two, three across, three down.
-        val shapes = templates(3).map { root ->
-            layoutOf(Collage(root = root, gap = 0f), 600f, 600f).cells.map { it.width to it.height }.sortedBy { it.first }
-        }
-        assertEquals(4, shapes.size)
-        assertEquals(4, shapes.distinct().size)
+    fun threeIsOneOverTwoAndThreeInALine() {
+        // One beside two is one over two turned; three down is three side by side turned.
+        val shapes = templates(3).map { root -> boxes(root).map { (l, t, r, b) -> r - l to b - t }.sortedBy { it.first } }
+        assertEquals(listOf(listOf(50 to 50, 50 to 50, 100 to 50), listOf(33 to 100, 33 to 100, 33 to 100)), shapes)
     }
 
     @Test
-    fun aSquareGridIsOfferedOnce() {
-        // The grid, then one large cell beside the rest and above them.
-        assertEquals(3, templates(4).size)
+    fun noLayoutIsAnotherTurnedOrMirrored() {
+        TEMPLATE_COUNTS.forEach { n ->
+            val options = templates(n)
+            options.forEachIndexed { i, a ->
+                val forms = generateSequence(a) { it.turnedClockwise() }.take(4).toList().let { it + it.map(Node::mirrored) }
+                options.drop(i + 1).forEach { b ->
+                    assertTrue("two alike for $n", forms.none { boxes(it).toSet() == boxes(b).toSet() })
+                }
+            }
+        }
+    }
+
+    @Test
+    fun howManyLayoutsEachCountOffers() {
         assertEquals(1, templates(1).size)
+        // Rows and columns of two are one turned.
+        assertEquals(1, templates(2).size)
+        // The grid, a line, one large beside the rest, 1-2-1.
+        assertEquals(4, templates(4).size)
+        // And 2-1-2 for an odd count.
+        assertEquals(5, templates(5).size)
+    }
+
+    @Test
+    fun fiveHasOneThreeOneAndTwoOneTwo() {
+        val looks = templates(5).map { boxes(it).toSet() }
+        // A whole row on top and at the bottom, three between.
+        assertTrue(
+            setOf(listOf(0, 0, 100, 33), listOf(0, 33, 33, 67), listOf(33, 33, 67, 67), listOf(67, 33, 100, 67), listOf(0, 67, 100, 100))
+                in looks,
+        )
+        // Two stacked, one tall, two stacked.
+        assertTrue(
+            setOf(listOf(0, 0, 33, 50), listOf(0, 50, 33, 100), listOf(33, 0, 67, 100), listOf(67, 0, 100, 50), listOf(67, 50, 100, 100))
+                in looks,
+        )
+    }
+
+    @Test
+    fun aMirrorSwapsLeftForRightAndKeepsTopAndBottom() {
+        val root = Split(Dir.ROW, 0.6f, Leaf(), Split(Dir.COLUMN, 0.5f, Leaf(), Leaf()))
+        assertEquals(
+            setOf(listOf(40, 0, 100, 100), listOf(0, 0, 40, 50), listOf(0, 50, 40, 100)),
+            boxes(root.mirrored()).toSet(),
+        )
     }
 
     @Test
@@ -55,7 +93,31 @@ class TemplatesTest {
 
     @Test
     fun countsOutOfRangeAreHeldToIt() {
-        assertEquals(9, templates(40).first().leafCount)
+        assertEquals(7, templates(40).first().leafCount)
         assertEquals(1, templates(0).first().leafCount)
+    }
+
+    private fun boxes(root: Node) =
+        layoutOf(Collage(root = root, gap = 0f, aspect = Aspect.SQUARE), 100f, 100f).cells
+            .map { listOf(it.left, it.top, it.right, it.bottom).map { v -> Math.round(v) } }
+
+    @Test
+    fun aTurnPutsTheLeftPartOnTopAndTheLowerOnTheLeft() {
+        // One large at the left, two above each other at the right.
+        val root = Split(Dir.ROW, 0.6f, Leaf(), Split(Dir.COLUMN, 0.5f, Leaf(), Leaf()))
+        // Turned: the large one across the top, the lower of the two now at the bottom left.
+        assertEquals(
+            setOf(listOf(0, 0, 100, 60), listOf(0, 60, 50, 100), listOf(50, 60, 100, 100)),
+            boxes(root.turnedClockwise()).toSet(),
+        )
+    }
+
+    @Test
+    fun fourTurnsComeBackRound() {
+        templates(5).forEach { root ->
+            var turned = root
+            repeat(4) { turned = turned.turnedClockwise() }
+            assertEquals(boxes(root), boxes(turned))
+        }
     }
 }

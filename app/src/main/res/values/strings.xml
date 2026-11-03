@@ -55,6 +55,7 @@
     <string name="swap">Swap</string>
     <string name="swap_hint">Tap the cell to swap with</string>
     <string name="turn">Turn</string>
+    <string name="mirror">Mirror</string>
     <string name="split_across">Into columns</string>
     <string name="split_down">Into rows</string>
     <string name="clear_photo">Clear</string>
