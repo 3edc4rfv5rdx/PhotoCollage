@@ -171,4 +171,16 @@ class CollageTest {
         assertEquals(setOf("c.img"), keptPhotos(draft, null))
         assertEquals(emptySet<String>(), keptPhotos(null, null))
     }
+
+    @Test
+    fun aNewLayoutKeepsEachPhotosQuarterTurnAndFramesItAfresh() {
+        val turned = threeCells().mapPhoto(0) { it.turned().copy(zoom = 2f, angle = 15f) }
+        val laid = turned.withLayout(Split(Dir.COLUMN, 0.5f, Leaf(), Leaf()))
+        val first = laid.leaves[0].photo!!
+        assertEquals(a, first.photo)
+        assertEquals(1, first.quarter)
+        assertEquals(1f, first.zoom)
+        assertEquals(0f, first.angle)
+        assertEquals(b, laid.leaves[1].photo?.photo)
+    }
 }

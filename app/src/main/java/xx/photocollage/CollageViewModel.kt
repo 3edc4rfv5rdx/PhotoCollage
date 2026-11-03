@@ -244,10 +244,10 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     /** A ready-made layout, the photos there are given out to its cells in order; any past its end are left out. */
     fun applyTemplate(root: Node) {
-        val photos = history.current.photos()
-        push(history.current.copy(root = root.withPhotos(photos.map { CellPhoto(it) })))
+        val photos = history.current.photos().size
+        push(history.current.withLayout(root))
         _state.value = _state.value.copy(selected = null, swapFrom = null)
-        if (photos.size > root.leafCount) say(Notice(R.string.photos_left_out, listOf(photos.size - root.leafCount)))
+        if (photos > root.leafCount) say(Notice(R.string.photos_left_out, listOf(photos - root.leafCount)))
     }
 
     fun setAspect(aspect: Aspect) = push(history.current.withAspect(aspect))

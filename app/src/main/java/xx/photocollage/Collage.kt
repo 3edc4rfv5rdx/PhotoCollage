@@ -199,6 +199,14 @@ fun Node.withPhotos(photos: List<CellPhoto?>): Node {
     return fill(this)
 }
 
+/**
+ * The collage laid out as [root], its photos given out to the new cells in
+ * order and framed afresh for them, each keeping its quarter turns as a swap
+ * does; any past the last cell are left out.
+ */
+fun Collage.withLayout(root: Node): Collage =
+    copy(root = root.withPhotos(leaves.mapNotNull { it.photo?.let(::refit) }))
+
 /** The [index]th cell cut in two along [dir]: its photo stays in the first half, the second is empty. */
 fun Node.splitLeaf(index: Int, dir: Dir): Node =
     mapLeaf(index) { Split(dir, 0.5f, Leaf(it.photo?.let(::refit)), Leaf()) }
