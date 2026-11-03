@@ -123,15 +123,10 @@ private enum class Adjust { NONE, GAP, CORNER, BLEND }
 /** Which dialog is up. */
 private enum class Dialog { NONE, LAYOUT, FORMAT, BACKGROUND, SAVE, PROPERTIES, PHOTO_INFO, NEW_COLLAGE, ADD_OVERLAY, RESHAPE }
 
-/**
- * The collage's own settings, under the wrench while no cell is selected:
- * four open a dialog, three a strip under the collage, and one hides the
- * overlays or shows them again.
- */
+/** The collage's own settings, under the wrench while no cell is selected: four open a dialog, three a strip under the collage. */
 private enum class CollageTool(val icon: ImageVector, @param:StringRes val text: Int) {
     LAYOUT(Icons.Filled.Dashboard, R.string.layout),
     OVERLAY(Icons.Filled.Layers, R.string.overlay),
-    HIDE_OVERLAYS(Icons.Filled.VisibilityOff, R.string.hide_overlays),
     FORMAT(Icons.Filled.AspectRatio, R.string.format),
     GAP(Icons.Filled.BorderOuter, R.string.gap),
     CORNERS(Icons.Filled.RoundedCorner, R.string.corners),
@@ -314,7 +309,6 @@ private fun EditorScreen(
                         CollageTool.BLEND -> adjust = Adjust.BLEND
                         CollageTool.BACKGROUND -> dialog = Dialog.BACKGROUND
                         CollageTool.OVERLAY -> dialog = Dialog.ADD_OVERLAY
-                        CollageTool.HIDE_OVERLAYS -> vm.toggleOverlays()
                     }
                 },
                 onSettings = onSettings,
@@ -480,6 +474,14 @@ private fun TopBar(
         LargeIconButton(Icons.AutoMirrored.Filled.Undo, stringResource(R.string.undo), vm::undo, enabled = state.canUndo)
         LargeIconButton(Icons.AutoMirrored.Filled.Redo, stringResource(R.string.redo), vm::redo, enabled = state.canRedo)
         LargeIconButton(Icons.Filled.Save, stringResource(R.string.save_image), onSave, enabled = hasPhotos)
+        // Only while there are overlays to hide; whatever is selected, as the cell to work on lies under one.
+        if (state.collage.overlays.isNotEmpty()) {
+            if (state.overlaysHidden) {
+                LargeIconButton(Icons.Filled.VisibilityOff, stringResource(R.string.show_overlays), vm::toggleOverlays)
+            } else {
+                LargeIconButton(Icons.Filled.Visibility, stringResource(R.string.hide_overlays), vm::toggleOverlays)
+            }
+        }
         // One button for both: the selected cell's tools while a cell is selected, the collage's otherwise —
         // a pencil for the one, a wrench for the other, so it says which before it opens.
         val cell = state.selected
@@ -513,16 +515,8 @@ private fun TopBar(
                     }
                 } else {
                     CollageTool.entries.forEach { tool ->
-                        val enabled = when (tool) {
-                            CollageTool.OVERLAY -> state.collage.overlays.size < MAX_OVERLAYS
-                            CollageTool.HIDE_OVERLAYS -> state.collage.overlays.isNotEmpty()
-                            else -> true
-                        }
-                        // While they are hidden, the same line shows them again.
-                        val showing = tool == CollageTool.HIDE_OVERLAYS && state.overlaysHidden
-                        val text = if (showing) R.string.show_overlays else tool.text
-                        val icon = if (showing) Icons.Filled.Visibility else tool.icon
-                        AppMenuItem(stringResource(text), enabled = enabled, icon = icon) {
+                        val enabled = tool != CollageTool.OVERLAY || state.collage.overlays.size < MAX_OVERLAYS
+                        AppMenuItem(stringResource(tool.text), enabled = enabled, icon = tool.icon) {
                             tools = false
                             onTool(tool)
                         }

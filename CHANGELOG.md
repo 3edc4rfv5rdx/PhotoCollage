@@ -3,6 +3,7 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- F: The eye that hides and shows the overlays sits in the top bar while there are any, instead of the wrench menu
 - N: Hide overlays in the wrench menu leaves their outlines and lets the cells under them be worked on
 - N: Overlays in the wrench menu put up to six photos in shapes over the cells — circle, square, triangle, diamond, hexagon, star, heart — moved, sized and turned by hand
 - I: 24-ToLocalUpdates.sh publishes the newest build of every project to the local update server
