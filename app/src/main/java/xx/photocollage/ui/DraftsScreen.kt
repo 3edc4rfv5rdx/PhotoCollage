@@ -20,7 +20,13 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Deselect
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,20 +42,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import xx.photocollage.ArchiveChoice
+import xx.photocollage.ArchivedDraft
 import xx.photocollage.CollageViewModel
+import xx.photocollage.DRAFT_TILE_LONG
 import xx.photocollage.DraftInfo
 import xx.photocollage.R
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import kotlin.math.max
-
-/** The long side a draft's picture in the grid is drawn at: sharp in a tile, light enough for a screenful. */
-private const val TILE_LONG = 480
 
 /** The most a draft shown large is drawn at, however large the screen. */
 private const val LARGE_MAX_LONG = 2048
@@ -134,24 +135,10 @@ private val TILE_SHAPE = RoundedCornerShape(12.dp)
 /** One draft in the grid: its picture in a square, ringed in the accent when [current], and when it was saved under it. */
 @Composable
 private fun DraftTile(vm: CollageViewModel, draft: DraftInfo, current: Boolean, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
     Column(Modifier.clickable(onClick = onClick)) {
-        DraftPicture(
-            vm,
-            draft,
-            TILE_LONG,
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(TILE_SHAPE)
-                .border(
-                    if (current) BorderStroke(3.dp, scheme.primary) else BorderStroke(1.dp, scheme.outlineVariant),
-                    TILE_SHAPE,
-                )
-                .padding(6.dp),
-        )
+        DraftPicture(draft, tileModifier(current)) { vm.draftPreview(draft.id, DRAFT_TILE_LONG) }
         Text(
-            savedAtText(draft),
+            dateTimeText(draft.savedAt),
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             modifier = Modifier.padding(top = 4.dp, start = 2.dp),
@@ -169,10 +156,10 @@ private fun DraftView(
     onDelete: () -> Unit,
 ) {
     var confirming by rememberSaveable { mutableStateOf(false) }
-    AppScreen(title = savedAtText(draft), onBack = onBack) {
+    AppScreen(title = dateTimeText(draft.savedAt), onBack = onBack) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(12.dp)) {
-            val long = max(constraints.maxWidth, constraints.maxHeight).coerceIn(TILE_LONG, LARGE_MAX_LONG)
-            DraftPicture(vm, draft, long, Modifier.fillMaxSize())
+            val long = max(constraints.maxWidth, constraints.maxHeight).coerceIn(DRAFT_TILE_LONG, LARGE_MAX_LONG)
+            DraftPicture(draft to long, Modifier.fillMaxSize()) { vm.draftPreview(draft.id, long) }
         }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -198,16 +185,28 @@ private fun DraftView(
     }
 }
 
+/** A tile's square, ringed in the accent when [marked]. */
+@Composable
+private fun tileModifier(marked: Boolean): Modifier {
+    val scheme = MaterialTheme.colorScheme
+    return Modifier
+        .fillMaxWidth()
+        .aspectRatio(1f)
+        .clip(TILE_SHAPE)
+        .border(if (marked) BorderStroke(3.dp, scheme.primary) else BorderStroke(1.dp, scheme.outlineVariant), TILE_SHAPE)
+        .padding(6.dp)
+}
+
 /**
- * [draft] drawn [longSide] pixels on its long side, fitted into [modifier]'s
- * room: drawn again when it is saved again, a spinner till then, and nothing
- * when it cannot be drawn.
+ * A draft's picture as [load] draws it, fitted into [modifier]'s room: drawn
+ * again when [key] changes — a draft saved again, a larger size — a spinner
+ * till then, and nothing when it cannot be drawn.
  */
 @Composable
-private fun DraftPicture(vm: CollageViewModel, draft: DraftInfo, longSide: Int, modifier: Modifier) {
-    var loading by remember(draft, longSide) { mutableStateOf(true) }
-    val picture by produceState<Bitmap?>(null, draft, longSide) {
-        value = vm.draftPreview(draft.id, longSide)
+private fun DraftPicture(key: Any, modifier: Modifier, load: suspend () -> Bitmap?) {
+    var loading by remember(key) { mutableStateOf(true) }
+    val picture by produceState<Bitmap?>(null, key) {
+        value = load()
         loading = false
     }
     Box(modifier, contentAlignment = Alignment.Center) {
@@ -218,12 +217,88 @@ private fun DraftPicture(vm: CollageViewModel, draft: DraftInfo, longSide: Int, 
     }
 }
 
-/** When [draft] was saved, short, in the app's language. */
+/**
+ * The drafts of an archive picked to import from, as a grid of their
+ * pictures, the one saved last first: a tap chooses one or lets it go, and
+ * Import brings the chosen ones in among the drafts here. One here already
+ * is said to be, and comes in as a copy beside it. Back lets the archive go,
+ * unless it is being imported from.
+ */
 @Composable
-private fun savedAtText(draft: DraftInfo): String {
-    val locale = LocalConfiguration.current.locales[0]
-    val format = remember(locale) {
-        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(locale)
+fun ImportScreen(vm: CollageViewModel, choice: ArchiveChoice, busy: Boolean) {
+    // A list, not a set: it is kept across the activity being made anew.
+    var chosen by rememberSaveable { mutableStateOf(listOf<String>()) }
+    val all = chosen.size == choice.drafts.size
+    AppScreen(
+        title = stringResource(R.string.import_drafts),
+        onBack = vm::closeArchive,
+        actions = {
+            LargeIconButton(
+                if (all) Icons.Filled.Deselect else Icons.Filled.SelectAll,
+                stringResource(if (all) R.string.select_none else R.string.select_all),
+                onClick = { chosen = if (all) emptyList() else choice.drafts.map { it.id } },
+                enabled = !busy,
+            )
+        },
+    ) {
+        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(TILE_MIN_WIDTH),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(choice.drafts, key = { it.id }) { draft ->
+                val marked = draft.id in chosen
+                ArchiveTile(vm, draft, marked, here = draft.id in choice.here) {
+                    if (!busy) chosen = if (marked) chosen - draft.id else chosen + draft.id
+                }
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            DialogConfirmButton(stringResource(R.string.import_selected), enabled = chosen.isNotEmpty() && !busy) {
+                vm.importChosen(chosen.toSet())
+            }
+        }
     }
-    return format.format(Instant.ofEpochMilli(draft.savedAt).atZone(ZoneId.systemDefault()))
+}
+
+/**
+ * One draft of an archive: its picture, ringed and ticked while [chosen],
+ * when it was saved under it, and under that whether it is [here] already.
+ */
+@Composable
+private fun ArchiveTile(vm: CollageViewModel, draft: ArchivedDraft, chosen: Boolean, here: Boolean, onClick: () -> Unit) {
+    Column(Modifier.clickable(onClick = onClick)) {
+        Box {
+            DraftPicture(draft, tileModifier(chosen)) { vm.archivePreview(draft.id) }
+            if (chosen) {
+                Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                )
+            }
+        }
+        Text(
+            dateTimeText(draft.savedAt),
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 4.dp, start = 2.dp),
+        )
+        if (here) {
+            Text(
+                stringResource(R.string.already_in_drafts),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = Modifier.padding(start = 2.dp),
+            )
+        }
+    }
 }

@@ -13,7 +13,8 @@ save or share.**
 
 ## Features
 
-- **Photos in**: from the app's own picker, folder by folder — as pictures
+- **Photos in**: from the app's own picker, over the folders granted to it
+  through the system's folder picker, as files and folders — as pictures
   with their names or as a list of names — several at once in the order
   tapped; from the system's picker under Other apps — which lists
   every app that hands out images, PhotoBox among them; or shared to
@@ -53,8 +54,8 @@ save or share.**
   auto-rotate off, while the editor stays upright — or as the system says, or
   never (Settings).
 - **Out**: save as a JPEG under a name of your own — the moment, unless
-  changed — into `Pictures/PhotoCollage` or a folder picked in Settings; or
-  share it.
+  changed — into the app's folder, granted once through the system's folder
+  picker (`Documents/PhotoCollage` offered first, changed in Settings); or share it.
 - **Properties** (⋮): the way round, shape, size, preset, and how many cells
   and photos.
 - **Kept**: the collage being edited is there again at the next start, even
@@ -65,12 +66,15 @@ save or share.**
   copy apart. Drafts (⋮) shows them all as pictures, the latest first; a tap shows one
   large, to open — asking first over a collage that holds work — or delete. The app
   keeps its own copy of every photo in them.
+- **Drafts out and in**: Export drafts (Settings) puts every draft, with its photos,
+  into one archive in the app's folder. Import drafts lists the archives there, or takes one from anywhere through Other
+  file, and shows its drafts as pictures to choose from. A draft that is there already
+  comes in as a copy, so nothing is written over — after a reinstall or on another phone.
 - English, Russian and Ukrainian; light and dark themes with accent colours.
 
-One permission besides the updater's: reading photos, for the app's own
-picker — refused, the system's picker is used instead. Share needs none,
-saving into Pictures needs none, and another folder is granted once through
-the system's folder picker.
+No permission besides the updater's: the folders the picker shows and the
+app's folder are each granted once through the system's folder picker, and
+Share needs none.
 
 ## Build
 

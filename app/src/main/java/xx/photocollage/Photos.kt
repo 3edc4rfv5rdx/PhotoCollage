@@ -31,6 +31,13 @@ fun oldDraftFile(context: Context): File = File(context.filesDir, "draft.json")
 /** The collage being edited, written after every step and opened again at the next start. */
 fun sessionFile(context: Context): File = File(context.filesDir, "current.json")
 
+/**
+ * Where an archive of drafts picked to import from is copied while its
+ * drafts are chosen: the system's picker hands out a grant that may end
+ * before then, and a file can be read in any order.
+ */
+fun archiveCacheDir(context: Context): File = File(context.cacheDir, "import")
+
 /** The file a [Photo] names. */
 fun photoFile(context: Context, photo: Photo): File = File(photoDir(context), photo.file)
 
@@ -108,7 +115,7 @@ private fun documentPath(context: Context, uri: Uri): String? {
     if (!DocumentsContract.isDocumentUri(context, uri)) return null
     val id = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull() ?: return null
     return when (uri.authority) {
-        "com.android.externalstorage.documents" -> id.substringAfter(':').takeIf { it.isNotBlank() }
+        EXTERNAL_STORAGE_AUTHORITY -> id.substringAfter(':').takeIf { it.isNotBlank() }
         "com.android.providers.downloads.documents" -> id.removePrefix("raw:").takeIf { id.startsWith("raw:") }
         else -> null
     }

@@ -135,6 +135,9 @@ private fun cellFrom(json: JSONObject, exists: (String) -> Boolean): CellPhoto? 
 fun isPhotoName(name: String): Boolean =
     name.isNotEmpty() && name.none { it == '/' || it == '\\' } && name != "." && name != ".."
 
+/** The long side a draft's picture is drawn at in a grid of them, and kept at in an archive of drafts. */
+const val DRAFT_TILE_LONG = 480
+
 /** A saved draft: its [id], and when it was last written, in milliseconds since the epoch. */
 data class DraftInfo(val id: String, val savedAt: Long)
 
@@ -166,11 +169,19 @@ class DraftStore(private val dir: File, private val photoExists: (String) -> Boo
         return runCatching { fileOf(id).readText() }.getOrNull()?.let { collageFromJson(it, photoExists) }
     }
 
-    /** [collage] as draft [id], over what it held if anything, whole or not at all; whether it was written. */
-    fun write(id: String, collage: Collage): Boolean = isDraftId(id) && runCatching {
+    /**
+     * [collage] as draft [id], over what it held if anything, whole or not at
+     * all, saved at [savedAt] if given — one brought in from an archive keeps
+     * its own — else now; whether it was written.
+     */
+    fun write(id: String, collage: Collage, savedAt: Long? = null): Boolean = isDraftId(id) && runCatching {
         dir.mkdirs()
         writeAtomically(fileOf(id), collage.toJson())
+        savedAt?.let { fileOf(id).setLastModified(it) }
     }.isSuccess
+
+    /** Whether there is a draft [id], readable or not. */
+    fun has(id: String): Boolean = isDraftId(id) && fileOf(id).isFile
 
     /** Draft [id] gone; whether it is, a draft that was never there being as gone as one deleted. */
     fun delete(id: String): Boolean = isDraftId(id) && fileOf(id).let { it.delete() || !it.exists() }

@@ -3,6 +3,10 @@
 > N=new feature, E=error fix, F=fine-tune, R=refactor, I=infrastructure
 
 ## Unreleased
+- N: Export drafts and Import drafts in Settings carry every draft with its photos in one archive, its drafts chosen by picture and one already here coming in as a copy
+- F: Saved collages and the drafts' archives go into one app folder granted once through the system's folder picker, not into Pictures through the media library
+- F: The app's picker shows the folders granted to it as files and folders, and the app asks no permission to read storage
+- E: Lines said while Settings or the Drafts screen is open are shown instead of lost
 ## v0.5.69 (2026-11-03)
 - F: The eye that hides and shows the overlays sits in the top bar while there are any, instead of the wrench menu
 - N: Hide overlays in the wrench menu leaves their outlines and lets the cells under them be worked on

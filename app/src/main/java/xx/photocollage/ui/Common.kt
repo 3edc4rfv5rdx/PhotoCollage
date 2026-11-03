@@ -1,6 +1,9 @@
 package xx.photocollage.ui
 
 import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -42,18 +45,32 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import xx.photocollage.ACCENT_COUNT
+import xx.photocollage.AppSettings
 import xx.photocollage.Notice
 import xx.photocollage.R
 import xx.photocollage.ThemeMode
+import xx.photocollage.folderHint
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 // ---------- Theme ----------
 
@@ -163,6 +180,67 @@ internal fun accentScheme(dark: Boolean, accent: Color): ColorScheme {
 fun noticeText(context: Context, notice: Notice): String {
     val head = context.getString(notice.text)
     return if (notice.args.isEmpty()) head else "$head: ${notice.args.joinToString()}"
+}
+
+/** The moment [millis], in milliseconds since the epoch, short, in the app's language. */
+@Composable
+fun dateTimeText(millis: Long): String {
+    val locale = LocalConfiguration.current.locales[0]
+    val format = remember(locale) {
+        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(locale)
+    }
+    return format.format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
+}
+
+// ---------- Loading ----------
+
+/** What reading a folder came to: still under way, not possible — its grant gone, or it — or [Found]. */
+sealed interface Loaded<out T> {
+    data object Loading : Loaded<Nothing>
+
+    data object Unavailable : Loaded<Nothing>
+
+    data class Found<T>(val value: T) : Loaded<T>
+}
+
+/** [value] found, or [Loaded.Unavailable] when it is null. */
+fun <T : Any> loadedOf(value: T?): Loaded<T> = if (value == null) Loaded.Unavailable else Loaded.Found(value)
+
+// ---------- The app's folder ----------
+
+/** Opens the system's folder picker for the app's folder, and runs what waited on one once it is granted. */
+class FolderGate internal constructor(private val folder: Uri?, private val ask: (String?, Uri?) -> Unit) {
+    /** [action] at once when there is a folder; else the picker, and [action]'s [key] handed back once one is granted. */
+    fun run(key: String, action: () -> Unit) {
+        if (folder != null) action() else ask(key, folderHint())
+    }
+
+    /** The picker, to choose another folder or the first, opened at the one there is if any. */
+    fun choose() = ask(null, folder ?: folderHint())
+}
+
+/**
+ * A [FolderGate] for this screen; [onGranted] is told the key of what
+ * waited on the folder. The key, not the action, is kept: the picker can
+ * outlive the activity, and a key is saveable where a lambda is not. A grant
+ * that cannot be kept is no folder: the setting stays as it was, and nothing
+ * waits on it.
+ */
+@Composable
+fun rememberFolderGate(onGranted: (String) -> Unit): FolderGate {
+    val context = LocalContext.current
+    val folder by AppSettings.folder.collectAsState()
+    var waiting by rememberSaveable { mutableStateOf<String?>(null) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        val key = waiting
+        waiting = null
+        val granted = uri != null && runCatching { AppSettings.setFolder(context, uri) }.isSuccess
+        if (granted && key != null) onGranted(key)
+    }
+    return FolderGate(folder) { key, start ->
+        waiting = key
+        pick.launch(start)
+    }
 }
 
 // ---------- Small controls ----------

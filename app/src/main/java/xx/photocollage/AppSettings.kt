@@ -38,7 +38,9 @@ object AppSettings {
     private const val KEY_THEME = "theme_mode"
     private const val KEY_ACCENT = "accent_index"
     private const val KEY_LANGUAGE = "language"
-    private const val KEY_SAVE_FOLDER = "save_folder"
+    /** The app's folder; named for the time it held only saved collages, so a folder picked then is kept. */
+    private const val KEY_FOLDER = "save_folder"
+    private const val KEY_PHOTO_FOLDERS = "photo_folders"
     private const val KEY_CANVAS_ROTATION = "canvas_rotation"
     private const val KEY_PICKER_LIST = "picker_list"
 
@@ -48,9 +50,17 @@ object AppSettings {
     private val _accentIndex = MutableStateFlow(0)
     val accentIndex: StateFlow<Int> = _accentIndex.asStateFlow()
 
-    /** The folder a collage is saved into, by the tree URI the folder picker gave; null for Pictures/PhotoCollage. */
-    private val _saveFolder = MutableStateFlow<Uri?>(null)
-    val saveFolder: StateFlow<Uri?> = _saveFolder.asStateFlow()
+    /**
+     * The app's folder, by the tree URI the system's folder picker gave: the
+     * collages are saved into it, the drafts' archives made in it and listed
+     * from it. Null till one is granted.
+     */
+    private val _folder = MutableStateFlow<Uri?>(null)
+    val folder: StateFlow<Uri?> = _folder.asStateFlow()
+
+    /** The folders the app's picker shows photos from, by the tree URIs the system's folder picker gave, by name. */
+    private val _photoFolders = MutableStateFlow<List<Uri>>(emptyList())
+    val photoFolders: StateFlow<List<Uri>> = _photoFolders.asStateFlow()
 
     /** When the collage turns with the phone; the rest of the editor never does. */
     private val _canvasRotation = MutableStateFlow(CanvasRotation.SENSOR)
@@ -64,7 +74,8 @@ object AppSettings {
         val prefs = prefs(context)
         _themeMode.value = enumOr(prefs.getString(KEY_THEME, null), ThemeMode.SYSTEM)
         _accentIndex.value = prefs.getInt(KEY_ACCENT, 0).coerceIn(0, ACCENT_COUNT - 1)
-        _saveFolder.value = prefs.getString(KEY_SAVE_FOLDER, null)?.toUri()
+        _folder.value = prefs.getString(KEY_FOLDER, null)?.toUri()
+        _photoFolders.value = sortedFolders(prefs.getStringSet(KEY_PHOTO_FOLDERS, null).orEmpty().map { it.toUri() })
         _canvasRotation.value = enumOr(prefs.getString(KEY_CANVAS_ROTATION, null), CanvasRotation.SENSOR)
         _pickerList.value = prefs.getBoolean(KEY_PICKER_LIST, false)
     }
@@ -91,21 +102,44 @@ object AppSettings {
     }
 
     /**
-     * Saves into [folder] from now on, or into Pictures/PhotoCollage when
-     * null. The new folder's grant is kept across restarts and the old one's
-     * given back, so they do not pile up against the system's limit.
+     * [folder] the app's folder from now on. Its grant is kept across
+     * restarts and the old one's given back, so they do not pile up against
+     * the system's limit.
      */
-    fun setSaveFolder(context: Context, folder: Uri?) {
+    fun setFolder(context: Context, folder: Uri) {
         val resolver = context.contentResolver
         val access = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-        if (folder != null) resolver.takePersistableUriPermission(folder, access)
-        val old = _saveFolder.value
-        if (old != null && old != folder) runCatching { resolver.releasePersistableUriPermission(old, access) }
-        _saveFolder.value = folder
-        prefs(context).edit {
-            if (folder == null) remove(KEY_SAVE_FOLDER) else putString(KEY_SAVE_FOLDER, folder.toString())
+        resolver.takePersistableUriPermission(folder, access)
+        val old = _folder.value
+        // Not one the picker shows photos from too: that would lose its grant with it.
+        if (old != null && old != folder && old !in _photoFolders.value) {
+            runCatching { resolver.releasePersistableUriPermission(old, access) }
         }
+        _folder.value = folder
+        prefs(context).edit { putString(KEY_FOLDER, folder.toString()) }
     }
+
+    /** [folder] among those the picker shows photos from, its grant to read kept across restarts. */
+    fun addPhotoFolder(context: Context, folder: Uri) {
+        context.contentResolver.takePersistableUriPermission(folder, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        savePhotoFolders(context, sortedFolders(_photoFolders.value + folder))
+    }
+
+    /** [folder] no longer shown by the picker, its grant given back unless it is the app's folder too. */
+    fun removePhotoFolder(context: Context, folder: Uri) {
+        if (folder != _folder.value) {
+            runCatching { context.contentResolver.releasePersistableUriPermission(folder, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        }
+        savePhotoFolders(context, _photoFolders.value - folder)
+    }
+
+    private fun savePhotoFolders(context: Context, folders: List<Uri>) {
+        _photoFolders.value = folders
+        prefs(context).edit { putStringSet(KEY_PHOTO_FOLDERS, folders.mapTo(HashSet()) { it.toString() }) }
+    }
+
+    /** [folders] once each, in the order of their paths as the user knows them. */
+    private fun sortedFolders(folders: List<Uri>): List<Uri> = byName(folders.distinct(), ::treeLabel)
 
     /**
      * The per-app language below API 33, where the platform does not keep one.

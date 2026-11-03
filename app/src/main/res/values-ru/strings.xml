@@ -15,8 +15,7 @@
     <string name="rotation_sensor">По датчику</string>
     <string name="rotation_system">Как в системе</string>
     <string name="rotation_never">Никогда</string>
-    <string name="setting_save_folder">Папка для сохранения</string>
-    <string name="choose_folder">Выбрать папку</string>
+    <string name="setting_folder">Папка приложения</string>
     <string name="theme_system">Системная</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
@@ -26,7 +25,9 @@
     <string name="choose_photos">Выбрать фото</string>
     <string name="add">Добавить</string>
     <string name="other_apps">Другие приложения</string>
-    <string name="allow_more_photos">Открыть доступ к другим фото</string>
+    <string name="add_folder">Добавить папку</string>
+    <string name="no_photo_folders">Пока нет папок с фото</string>
+    <string name="remove_photo_folder">Убрать из списка</string>
     <string name="no_photos">Нет фото</string>
     <string name="show_as_list">Списком</string>
     <string name="show_as_grid">Плиткой</string>
@@ -104,7 +105,21 @@
     <string name="draft_delete_failed">Не удалось удалить черновик</string>
     <string name="image_saved">Сохранено</string>
     <string name="image_save_failed">Не удалось сохранить изображение</string>
-    <string name="save_folder_unavailable">Папка для сохранения недоступна</string>
+    <string name="folder_unavailable">Папка недоступна</string>
     <string name="image_too_large">Не хватает памяти для такого размера изображения</string>
     <string name="image_photos_unreadable">Не сохранено из-за нечитаемых фото</string>
+    <string name="export_drafts">Экспорт черновиков</string>
+    <string name="import_drafts">Импорт черновиков</string>
+    <string name="import_selected">Импортировать</string>
+    <string name="select_all">Выбрать все</string>
+    <string name="select_none">Снять выбор</string>
+    <string name="already_in_drafts">Уже есть в черновиках</string>
+    <string name="drafts_exported">Черновики экспортированы</string>
+    <string name="drafts_export_failed">Не удалось экспортировать черновики</string>
+    <string name="archive_unreadable">Не удалось прочитать архив</string>
+    <string name="drafts_imported">Импортировано черновиков</string>
+    <string name="drafts_import_failed">Не удалось импортировать черновиков</string>
+    <string name="no_archives">В папке нет архивов</string>
+    <string name="other_file">Другой файл</string>
+    <string name="not_chosen">Не выбрана</string>
 </resources>

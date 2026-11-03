@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -91,9 +92,6 @@ import xx.photocollage.R
 import xx.photocollage.canSlant
 import xx.photocollage.canSplit
 import xx.photocollage.hasWorkBeyond
-import xx.photocollage.MediaAccess
-import xx.photocollage.mediaAccess
-import xx.photocollage.mediaPermissions
 import java.text.NumberFormat
 
 private enum class Screen { EDITOR, SETTINGS, DRAFTS }
@@ -101,7 +99,21 @@ private enum class Screen { EDITOR, SETTINGS, DRAFTS }
 /** The editor, and Settings and the drafts over it from the ⋮ menu. */
 @Composable
 fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
+    val context = LocalContext.current
     var screen by rememberSaveable { mutableStateOf(Screen.EDITOR) }
+    // Over Settings: the drafts' archives listed to import from.
+    var browsing by rememberSaveable { mutableStateOf(false) }
+    // Here, not in the editor: Settings and the drafts have their own lines to say.
+    LaunchedEffect(vm) {
+        vm.events.collect { event ->
+            when (event) {
+                is EditorEvent.Say -> Toast.makeText(context, noticeText(context, event.notice), Toast.LENGTH_SHORT).show()
+                is EditorEvent.Share -> shareImage(context, event.file)
+            }
+        }
+    }
+    val importing by vm.importing.collectAsState()
+    val state by vm.state.collectAsState()
     when (screen) {
         Screen.EDITOR -> EditorScreen(
             vm,
@@ -110,8 +122,24 @@ fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
             onDrafts = { screen = Screen.DRAFTS },
             onAbout = onAbout,
         )
-        Screen.SETTINGS -> AppScreen(title = stringResource(R.string.settings), onBack = { screen = Screen.EDITOR }) {
-            SettingsScreen(modifier = Modifier.weight(1f))
+        Screen.SETTINGS -> {
+            val choice = importing
+            when {
+                choice != null -> ImportScreen(vm, choice, busy = state.busy)
+                browsing -> ArchivesScreen(vm, busy = state.busy, onBack = { browsing = false })
+                else -> AppScreen(title = stringResource(R.string.settings), onBack = { screen = Screen.EDITOR }) {
+                    if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    SettingsScreen(
+                        modifier = Modifier.weight(1f),
+                        drafts = DraftsActions(
+                            canExport = state.drafts.isNotEmpty() && !state.busy,
+                            canImport = !state.busy,
+                            onExport = vm::exportDrafts,
+                            onBrowse = { browsing = true },
+                        ),
+                    )
+                }
+            }
         }
         Screen.DRAFTS -> DraftsScreen(vm, onBack = { screen = Screen.EDITOR }, onOpened = { screen = Screen.EDITOR })
     }
@@ -119,6 +147,9 @@ fun MainScreen(vm: CollageViewModel, onExit: () -> Unit, onAbout: () -> Unit) {
 
 /** Which of the collage's own settings is open under the canvas. */
 private enum class Adjust { NONE, GAP, CORNER, BLEND }
+
+/** What waits on the app's folder being granted in the editor: Save image. */
+private const val AFTER_FOLDER_SAVE = "save"
 
 /** Which dialog is up. */
 private enum class Dialog { NONE, LAYOUT, FORMAT, BACKGROUND, SAVE, PROPERTIES, PHOTO_INFO, NEW_COLLAGE, ADD_OVERLAY, RESHAPE }
@@ -198,11 +229,12 @@ private fun EditorScreen(
     onDrafts: () -> Unit,
     onAbout: () -> Unit,
 ) {
-    val context = LocalContext.current
     val state by vm.state.collectAsState()
     val rotation = rememberCanvasRotation()
     var adjust by rememberSaveable { mutableStateOf(Adjust.NONE) }
     var dialog by rememberSaveable { mutableStateOf(Dialog.NONE) }
+    // Save image asks for the name once there is a folder to save into: the first time, after it is granted.
+    val folderGate = rememberFolderGate { dialog = Dialog.SAVE }
     // The cell or overlay a picker was opened for, and for which way of picking; saveable,
     // since the picker can outlive the activity.
     var pickCell by rememberSaveable { mutableIntStateOf(0) }
@@ -228,32 +260,10 @@ private fun EditorScreen(
     }
     // The app's own picker while it is open, and for which way of picking.
     var picking by rememberSaveable { mutableStateOf<PickMode?>(null) }
-    // The way of picking that waits on the answer to the media permission.
-    var awaitingAccess by rememberSaveable { mutableStateOf<PickMode?>(null) }
-    val askAccess = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        val mode = awaitingAccess ?: return@rememberLauncherForActivityResult
-        awaitingAccess = null
-        // No access, not even to some photos: the system's picker, as before there was one of our own.
-        if (mediaAccess(context) == MediaAccess.NONE) systemPick(mode) else picking = mode
-    }
     fun pick(cell: Int, mode: PickMode) {
         pickCell = cell
         pickMode = mode
-        if (mediaAccess(context) == MediaAccess.NONE) {
-            awaitingAccess = mode
-            askAccess.launch(mediaPermissions())
-        } else {
-            picking = mode
-        }
-    }
-
-    LaunchedEffect(vm) {
-        vm.events.collect { event ->
-            when (event) {
-                is EditorEvent.Say -> Toast.makeText(context, noticeText(context, event.notice), Toast.LENGTH_SHORT).show()
-                is EditorEvent.Share -> shareImage(context, event.file)
-            }
-        }
+        picking = mode
     }
 
     BackHandler(
@@ -267,7 +277,7 @@ private fun EditorScreen(
                 vm,
                 onExit = onExit,
                 onNew = { if (vm.collageLosesWork()) dialog = Dialog.NEW_COLLAGE else vm.startNew(saveFirst = false) },
-                onSave = { dialog = Dialog.SAVE },
+                onSave = { folderGate.run(AFTER_FOLDER_SAVE) { dialog = Dialog.SAVE } },
                 onProperties = { dialog = Dialog.PROPERTIES },
                 onOverlayTool = { tool ->
                     val index = state.overlay

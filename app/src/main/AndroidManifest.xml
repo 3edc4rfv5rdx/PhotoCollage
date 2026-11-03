@@ -6,16 +6,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
-    <!-- The app's own picker lists the media library by folder: reading it
-         needs these, asked for at the first pick. Android 14 up may give only
-         some photos. Refused, the system's picker is used instead, and Share
-         still hands photos over with a read grant of its own. A finished
-         collage goes into Pictures/ through MediaStore, which needs none. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+    <!-- No permission to read storage: the app's own picker shows the folders
+         the user grants it through the system's folder picker, and a
+         finished collage and the drafts' archives go into the app's folder,
+         granted the same way. Share hands photos over with a read grant of
+         its own. -->
 
     <application
         android:allowBackup="false"

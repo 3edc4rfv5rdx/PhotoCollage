@@ -1,40 +1,38 @@
 package xx.photocollage
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GalleryTest {
 
+    private fun entry(name: String, folder: Boolean = false, modified: Long = 0) = FolderEntry(name, name, folder, modified)
+
     @Test
-    fun imagesGoIntoTheirFoldersTheNewestFolderFirst() {
-        val folders = foldersOf(
+    fun foldersComeFirstByNameThenPhotosNewestFirst() {
+        val order = pickerOrder(
             listOf(
-                MediaImage(1, "DCIM/Camera/", 100),
-                MediaImage(2, "Pictures/Trips/", 300),
-                MediaImage(3, "DCIM/Camera/", 200),
-                MediaImage(4, "Download/", 50),
+                entry("old.jpg", modified = 100),
+                entry("trips", folder = true, modified = 900),
+                entry("new.jpg", modified = 300),
+                entry("Camera", folder = true, modified = 1),
             ),
         )
-        assertEquals(listOf("Pictures/Trips/", "DCIM/Camera/", "Download/"), folders.map { it.path })
-        // Newest first inside a folder too.
-        assertEquals(listOf(3L, 1L), folders[1].images.map { it.id })
+        assertEquals(listOf("Camera", "trips", "new.jpg", "old.jpg"), order.map { it.name })
     }
 
     @Test
-    fun aFolderIsKnownByItsLastPart() {
-        assertEquals("Camera", MediaFolder("DCIM/Camera/", emptyList()).label)
-        assertEquals("Download", MediaFolder("Download", emptyList()).label)
-        assertEquals("/", MediaFolder("", emptyList()).label)
-    }
-
-    @Test
-    fun noImagesNoFolders() {
-        assertEquals(emptyList<MediaFolder>(), foldersOf(emptyList()))
+    fun onlyImagesAreOffered() {
+        assertTrue(isImageType("image/jpeg"))
+        assertTrue(isImageType("image/heic"))
+        assertFalse(isImageType("application/zip"))
+        assertFalse(isImageType(null))
     }
 
     @Test
     fun aListOfNamesReadsInOrderCaseAside() {
-        val images = listOf(MediaImage(1, "", 1, "b.jpg"), MediaImage(2, "", 2, "A.jpg"), MediaImage(3, "", 3, "c.jpg"))
-        assertEquals(listOf("A.jpg", "b.jpg", "c.jpg"), byName(images) { it.name }.map { it.name })
+        val names = listOf("b.jpg", "A.jpg", "c.jpg")
+        assertEquals(listOf("A.jpg", "b.jpg", "c.jpg"), byName(names) { it })
     }
 }

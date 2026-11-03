@@ -1,6 +1,5 @@
 package xx.photocollage
 
-import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -8,9 +7,10 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
-import android.provider.MediaStore
 import androidx.core.graphics.createBitmap
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.OutputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -21,11 +21,8 @@ import kotlin.math.min
 /** How a saved collage is compressed: high enough that the photos in it lose nothing to the eye. */
 private const val JPEG_QUALITY = 92
 
-/** The folder under Pictures/ saved collages go into unless Settings names another. */
+/** The app's folder under Documents/ that the folder picker offers first. */
 private const val ALBUM = "PhotoCollage"
-
-/** That folder as the user knows it. */
-const val DEFAULT_FOLDER_LABEL = "Pictures/$ALBUM"
 
 /** What came of drawing a collage to be saved. */
 sealed interface Rendered {
@@ -123,6 +120,16 @@ fun renderPreview(context: Context, collage: Collage, longSide: Int): Bitmap? {
     }
 }
 
+/** [collage] as a JPEG [longSide] pixels on its long side, as [renderPreview] draws it; null when it cannot be drawn. */
+fun previewJpeg(context: Context, collage: Collage, longSide: Int): ByteArray? {
+    val bitmap = renderPreview(context, collage, longSide) ?: return null
+    return try {
+        ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it) }.toByteArray()
+    } finally {
+        bitmap.recycle()
+    }
+}
+
 /**
  * [decode] for a render, noting in [unreadable] each photo it could not give
  * the first time it was asked for — when its cell is drawn. The blend asks
@@ -142,22 +149,18 @@ sealed interface SaveResult {
     /** Written, under [name]: the system numbers it when the name asked for is taken. */
     data class Saved(val name: String) : SaveResult
 
-    /** The folder picked in Settings takes no file any more: its grant is gone, or the folder is. */
+    /** The app's folder takes no file any more: its grant is gone, or the folder is. */
     data object FolderUnavailable : SaveResult
 
     /** Not written, for any other reason. */
     data object Failed : SaveResult
 }
 
-/**
- * Saves [bitmap] as a JPEG into [folder] — a folder the user picked in
- * Settings, by its tree URI — or into Pictures/PhotoCollage when null.
- */
-fun saveImage(context: Context, bitmap: Bitmap, folder: Uri?, fileName: String): SaveResult {
-    if (folder != null) return saveToFolder(context, bitmap, folder, fileName)
-    val uri = saveToPictures(context, bitmap, fileName) ?: return SaveResult.Failed
-    return SaveResult.Saved(displayName(context, uri) ?: fileName)
-}
+/** Saves [bitmap] as a JPEG into [folder], the app's folder by its tree URI; see [writeToFolder]. */
+fun saveImage(context: Context, bitmap: Bitmap, folder: Uri, fileName: String): SaveResult =
+    writeToFolder(context, folder, fileName, "image/jpeg") { out ->
+        check(bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)) { "nothing written" }
+    }
 
 /** The name the file at [uri] goes by, as its provider says; null if it will not say. */
 private fun displayName(context: Context, uri: Uri): String? = runCatching {
@@ -166,63 +169,84 @@ private fun displayName(context: Context, uri: Uri): String? = runCatching {
     }
 }.getOrNull()
 
-/** The folder [saveImage] writes into, as the user knows it: the path within its storage. */
-fun folderLabel(folder: Uri?): String {
-    if (folder == null) return DEFAULT_FOLDER_LABEL
+/** A folder granted through the system's folder picker, as the user knows it: the path within its storage. */
+fun treeLabel(tree: Uri): String {
     // "primary:Pictures/Trips" on the phone's own storage, "1A2B-3C4D:DCIM" on a card.
-    val id = runCatching { DocumentsContract.getTreeDocumentId(folder) }.getOrNull() ?: return folder.toString()
+    val id = runCatching { DocumentsContract.getTreeDocumentId(tree) }.getOrNull() ?: return tree.toString()
     return id.substringAfter(':').ifEmpty { "/" }
 }
 
-/** Through MediaStore, which needs no permission for its own Pictures/ folder. The file written, or null. */
-private fun saveToPictures(context: Context, bitmap: Bitmap, fileName: String): Uri? {
-    val resolver = context.contentResolver
-    val values = ContentValues().apply {
-        put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
-        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-        put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/$ALBUM")
-        // Hidden from other apps until it is written whole.
-        put(MediaStore.Images.Media.IS_PENDING, 1)
-    }
-    // Throws, not only gives null, when the storage is not there.
-    val uri = runCatching { resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) }.getOrNull() ?: return null
-    return try {
-        writeJpeg(context, bitmap, uri)
-        resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
-        uri
-    } catch (e: Exception) {
-        resolver.delete(uri, null, null)
-        null
-    }
-}
+/** The provider of the phone's own storage, as the system's file and folder pickers show it. */
+const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
+
+/** The folder or file at [path] on the phone's own storage — "DCIM", say — as the system's pickers name it. */
+fun storageDocument(path: String): Uri = DocumentsContract.buildDocumentUri(EXTERNAL_STORAGE_AUTHORITY, "primary:$path")
 
 /**
- * Into a folder the user granted through the system's folder picker. A file
- * that cannot be made there — the grant gone, or the folder — is
- * [SaveResult.FolderUnavailable], not made elsewhere behind their back.
+ * Where the folder picker opens to choose the app's folder:
+ * Documents/PhotoCollage when it is there, else Documents, to make it in.
+ * Only where the picker starts: the folder is the one the user then grants.
  */
-private fun saveToFolder(context: Context, bitmap: Bitmap, tree: Uri, fileName: String): SaveResult {
+fun folderHint(): Uri {
+    @Suppress("DEPRECATION") // Only to ask whether the folder is there; nothing is read or written through it.
+    val documents = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+    val ours = runCatching { File(documents, ALBUM).isDirectory }.getOrDefault(false)
+    val path = if (ours) "${Environment.DIRECTORY_DOCUMENTS}/$ALBUM" else Environment.DIRECTORY_DOCUMENTS
+    return storageDocument(path)
+}
+
+/** An archive of drafts in the app's folder: where it is, its name, its size in bytes, and when it was last changed. */
+data class ArchiveFile(val uri: Uri, val name: String, val size: Long, val modified: Long)
+
+/**
+ * The .zip files right in [tree] — a folder granted through the system's
+ * folder picker — the newest first; null when the folder cannot be read:
+ * its grant is gone, or the folder is.
+ */
+fun listArchives(context: Context, tree: Uri): List<ArchiveFile>? = runCatching {
+    val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+    val columns = arrayOf(
+        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+        DocumentsContract.Document.COLUMN_MIME_TYPE,
+        DocumentsContract.Document.COLUMN_SIZE,
+        DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+    )
+    val found = ArrayList<ArchiveFile>()
+    val cursor = checkNotNull(context.contentResolver.query(children, columns, null, null, null)) { "no listing" }
+    cursor.use { c ->
+        while (c.moveToNext()) {
+            val name = c.getString(1) ?: continue
+            if (c.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR || !name.endsWith(".zip", ignoreCase = true)) continue
+            val uri = DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(0))
+            found += ArchiveFile(uri, name, if (c.isNull(3)) 0 else c.getLong(3), if (c.isNull(4)) 0 else c.getLong(4))
+        }
+    }
+    found.sortedWith(compareByDescending<ArchiveFile> { it.modified }.thenBy { it.name })
+}.getOrNull()
+
+/**
+ * A file named [fileName], of type [mime], made in [tree] — a folder the
+ * user granted through the system's folder picker — and filled by [write];
+ * gone again if [write] throws. A file that cannot be made there — the grant
+ * gone, or the folder — is [SaveResult.FolderUnavailable], not made
+ * elsewhere behind their back.
+ */
+fun writeToFolder(context: Context, tree: Uri, fileName: String, mime: String, write: (OutputStream) -> Unit): SaveResult {
     val resolver = context.contentResolver
     val doc = try {
         val parent = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
-        DocumentsContract.createDocument(resolver, parent, "image/jpeg", fileName)
+        DocumentsContract.createDocument(resolver, parent, mime, fileName)
     } catch (e: Exception) {
         null
     } ?: return SaveResult.FolderUnavailable
     return try {
-        writeJpeg(context, bitmap, doc)
+        checkNotNull(resolver.openOutputStream(doc)) { "no stream" }.use(write)
         SaveResult.Saved(displayName(context, doc) ?: fileName)
     } catch (e: Exception) {
         runCatching { DocumentsContract.deleteDocument(resolver, doc) }
         SaveResult.Failed
     }
-}
-
-private fun writeJpeg(context: Context, bitmap: Bitmap, uri: Uri) {
-    val written = context.contentResolver.openOutputStream(uri)?.use {
-        bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)
-    }
-    check(written == true) { "nothing written" }
 }
 
 /**
@@ -255,5 +279,9 @@ fun jpegFileName(input: String): String {
 private const val FORBIDDEN_IN_NAMES = "/\\:*?\"<>|"
 
 /** A saved collage's name unless the user gives another: the app's and the moment, so a folder sorts them by time. */
-fun defaultImageName(): String =
-    "PhotoCollage-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT))
+fun defaultImageName(): String = "PhotoCollage-" + timeStamp()
+
+/** The name an archive of the drafts is made under: the app's, what it holds, and the moment. */
+fun draftArchiveName(): String = "PhotoCollage-drafts-${timeStamp()}.zip"
+
+private fun timeStamp(): String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT))

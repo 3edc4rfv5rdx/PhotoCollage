@@ -15,8 +15,7 @@
     <string name="rotation_sensor">За датчиком</string>
     <string name="rotation_system">Як у системі</string>
     <string name="rotation_never">Ніколи</string>
-    <string name="setting_save_folder">Папка для збереження</string>
-    <string name="choose_folder">Вибрати папку</string>
+    <string name="setting_folder">Папка застосунку</string>
     <string name="theme_system">Системна</string>
     <string name="theme_light">Світла</string>
     <string name="theme_dark">Темна</string>
@@ -26,7 +25,9 @@
     <string name="choose_photos">Вибрати фото</string>
     <string name="add">Додати</string>
     <string name="other_apps">Інші застосунки</string>
-    <string name="allow_more_photos">Відкрити доступ до інших фото</string>
+    <string name="add_folder">Додати папку</string>
+    <string name="no_photo_folders">Поки немає папок із фото</string>
+    <string name="remove_photo_folder">Прибрати зі списку</string>
     <string name="no_photos">Немає фото</string>
     <string name="show_as_list">Списком</string>
     <string name="show_as_grid">Плиткою</string>
@@ -104,7 +105,21 @@
     <string name="draft_delete_failed">Не вдалося видалити чернетку</string>
     <string name="image_saved">Збережено</string>
     <string name="image_save_failed">Не вдалося зберегти зображення</string>
-    <string name="save_folder_unavailable">Папка для збереження недоступна</string>
+    <string name="folder_unavailable">Папка недоступна</string>
     <string name="image_too_large">Не вистачає пам’яті для такого розміру зображення</string>
     <string name="image_photos_unreadable">Не збережено через нечитабельні фото</string>
+    <string name="export_drafts">Експорт чернеток</string>
+    <string name="import_drafts">Імпорт чернеток</string>
+    <string name="import_selected">Імпортувати</string>
+    <string name="select_all">Вибрати всі</string>
+    <string name="select_none">Зняти вибір</string>
+    <string name="already_in_drafts">Вже є в чернетках</string>
+    <string name="drafts_exported">Чернетки експортовано</string>
+    <string name="drafts_export_failed">Не вдалося експортувати чернетки</string>
+    <string name="archive_unreadable">Не вдалося прочитати архів</string>
+    <string name="drafts_imported">Імпортовано чернеток</string>
+    <string name="drafts_import_failed">Не вдалося імпортувати чернеток</string>
+    <string name="no_archives">У папці немає архівів</string>
+    <string name="other_file">Інший файл</string>
+    <string name="not_chosen">Не вибрано</string>
 </resources>

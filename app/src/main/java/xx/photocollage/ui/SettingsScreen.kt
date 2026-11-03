@@ -1,8 +1,6 @@
 package xx.photocollage.ui
 
 import androidx.activity.compose.LocalActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -33,32 +32,46 @@ import androidx.compose.ui.unit.dp
 import dev.updater.Updater
 import xx.photocollage.AppSettings
 import xx.photocollage.CanvasRotation
-import xx.photocollage.DEFAULT_FOLDER_LABEL
 import xx.photocollage.R
 import xx.photocollage.ThemeMode
 import xx.photocollage.currentLanguageTag
-import xx.photocollage.folderLabel
 import xx.photocollage.setLanguageTag
 import xx.photocollage.supportedLanguages
+import xx.photocollage.treeLabel
 
 /** Which editor is open; only one can be at a time. */
-private enum class Editing { NONE, THEME, ACCENT, LANGUAGE, ROTATION, SAVE_FOLDER }
+private enum class Editing { NONE, THEME, ACCENT, LANGUAGE, ROTATION }
 
-/** The lines of the save-folder dialog: the default folder, the one picked before if any, and a new pick. */
-private enum class FolderOption { DEFAULT, CURRENT, PICK }
+/** What the drafts' lines in Settings may do and do: export them all, and list the archives to import from. */
+class DraftsActions(
+    val canExport: Boolean,
+    val canImport: Boolean,
+    val onExport: () -> Unit,
+    val onBrowse: () -> Unit,
+)
 
-/** Theme, accent colour, language, the start-up update check, when the collage turns, and the folder it is saved into. */
+/** What may wait on the app's folder being granted: the line tapped before there was one. */
+private const val AFTER_FOLDER_EXPORT = "export"
+private const val AFTER_FOLDER_IMPORT = "import"
+
+/**
+ * Theme, accent colour, language, the start-up update check, when the
+ * collage turns, the app's folder, and the drafts out to an archive there
+ * and in from one.
+ */
 @Composable
-fun SettingsScreen(modifier: Modifier = Modifier) {
+fun SettingsScreen(drafts: DraftsActions, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val themeMode by AppSettings.themeMode.collectAsState()
     val accentIndex by AppSettings.accentIndex.collectAsState()
-    val saveFolder by AppSettings.saveFolder.collectAsState()
+    val folder by AppSettings.folder.collectAsState()
     val canvasRotation by AppSettings.canvasRotation.collectAsState()
-    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        // A grant that cannot be kept is no folder to save into later: the setting stays as it was.
-        uri?.let { runCatching { AppSettings.setSaveFolder(context, it) } }
+    val folderGate = rememberFolderGate { key ->
+        when (key) {
+            AFTER_FOLDER_EXPORT -> drafts.onExport()
+            AFTER_FOLDER_IMPORT -> drafts.onBrowse()
+        }
     }
 
     val systemLabel = stringResource(R.string.language_system)
@@ -114,10 +127,18 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         )
         HorizontalDivider()
         SettingRow(
-            label = stringResource(R.string.setting_save_folder),
-            value = folderLabel(saveFolder),
-            onClick = { editing = Editing.SAVE_FOLDER },
+            label = stringResource(R.string.setting_folder),
+            value = folder?.let(::treeLabel) ?: stringResource(R.string.not_chosen),
+            onClick = folderGate::choose,
         )
+        HorizontalDivider()
+        ActionRow(stringResource(R.string.export_drafts), enabled = drafts.canExport) {
+            folderGate.run(AFTER_FOLDER_EXPORT, drafts.onExport)
+        }
+        HorizontalDivider()
+        ActionRow(stringResource(R.string.import_drafts), enabled = drafts.canImport) {
+            folderGate.run(AFTER_FOLDER_IMPORT, drafts.onBrowse)
+        }
     }
 
     when (editing) {
@@ -174,32 +195,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             },
         )
 
-        Editing.SAVE_FOLDER -> ChoiceDialog(
-            title = stringResource(R.string.setting_save_folder),
-            options = if (saveFolder == null) {
-                listOf(FolderOption.DEFAULT, FolderOption.PICK)
-            } else {
-                FolderOption.entries
-            },
-            selected = if (saveFolder == null) FolderOption.DEFAULT else FolderOption.CURRENT,
-            label = {
-                when (it) {
-                    FolderOption.DEFAULT -> DEFAULT_FOLDER_LABEL
-                    FolderOption.CURRENT -> folderLabel(saveFolder)
-                    FolderOption.PICK -> stringResource(R.string.choose_folder)
-                }
-            },
-            onDismiss = { editing = Editing.NONE },
-            onPick = {
-                editing = Editing.NONE
-                when (it) {
-                    FolderOption.DEFAULT -> AppSettings.setSaveFolder(context, null)
-                    FolderOption.CURRENT -> Unit
-                    FolderOption.PICK -> pickFolder.launch(saveFolder)
-                }
-            },
-        )
-
         Editing.NONE -> Unit
     }
 }
@@ -215,6 +210,20 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
+
+/** A line that does something at a tap rather than show a setting; dimmed and still while it cannot. */
+@Composable
+private fun ActionRow(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Text(
+        label,
+        style = MaterialTheme.typography.titleLarge,
+        color = if (enabled) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA),
+        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(vertical = 10.dp),
+    )
+}
+
+/** How faint a line that cannot be tapped is drawn: Material's own for disabled content. */
+private const val DISABLED_ALPHA = 0.38f
 
 @Composable
 private fun SettingRow(label: String, value: String, onClick: () -> Unit) {

@@ -1,83 +1,79 @@
 package xx.photocollage
 
-import android.Manifest
-import android.content.ContentUris
 import android.content.Context
-import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
-import android.provider.MediaStore
-import androidx.core.content.ContextCompat
+import android.provider.DocumentsContract
+import android.provider.DocumentsContract.Document
+import android.util.Size
 
 /**
- * One image of the phone's media library, as the app's own picker lists it:
- * [id] in MediaStore, the [folder] it lies in as MediaStore gives it —
- * "DCIM/Camera/", empty at the top of the storage — when it was [added], in
- * seconds, and its file [name].
+ * One thing in a folder the user granted, as the app's own picker lists it:
+ * a folder or an image, by its [docId] within the granted tree, its file
+ * [name], and when it was last changed.
  */
-data class MediaImage(val id: Long, val folder: String, val added: Long, val name: String = "")
+data class FolderEntry(val docId: String, val name: String, val isFolder: Boolean, val modified: Long)
+
+/** The URI [entry] is read through, in the granted [tree] it was listed from. */
+fun FolderEntry.uriIn(tree: Uri): Uri = DocumentsContract.buildDocumentUriUsingTree(tree, docId)
 
 /** [items] in the order a list of names reads — case aside — by the [name] of each: photos and folders alike. */
 fun <T> byName(items: List<T>, name: (T) -> String): List<T> = items.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, name))
 
-/** A folder of the picker: its [path] as MediaStore gives it, its [images] newest first. */
-data class MediaFolder(val path: String, val images: List<MediaImage>) {
-    /** The folder as the user knows it: its last part, "/" for the top of the storage. */
-    val label: String get() = path.trimEnd('/').substringAfterLast('/').ifEmpty { "/" }
-}
+/** [entries] as the picker shows them: the folders first, by name, then the images, the newest first. */
+fun pickerOrder(entries: List<FolderEntry>): List<FolderEntry> =
+    byName(entries.filter { it.isFolder }) { it.name } + entries.filterNot { it.isFolder }.sortedByDescending { it.modified }
 
-/** [images] by the folder they lie in, each newest first, the folder with the newest image first. */
-fun foldersOf(images: List<MediaImage>): List<MediaFolder> =
-    images.groupBy { it.folder }
-        .map { (path, inFolder) -> MediaFolder(path, inFolder.sortedByDescending { it.added }) }
-        .sortedByDescending { it.images.first().added }
+/** Whether a file of [mime] type is one the picker offers: an image. */
+fun isImageType(mime: String?): Boolean = mime != null && mime.startsWith("image/")
 
-/** The URI the media library reads [image] by. */
-fun MediaImage.uri(): Uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+/** The folder a granted [tree] is itself, within it. */
+fun rootDocId(tree: Uri): String? = runCatching { DocumentsContract.getTreeDocumentId(tree) }.getOrNull()
 
 /**
- * Every image the app may see in the media library: all of them with full
- * access, only those the user picked with access to some (Android 14 up).
- * Empty when it may see none or the library will not answer.
+ * The folders and images right in folder [docId] of granted [tree], in no
+ * order; anything else there is left out, and so are hidden ones. Null when
+ * it cannot be read: its grant is gone, or the folder is.
  */
-fun loadMediaImages(context: Context): List<MediaImage> = runCatching {
-    val projection = arrayOf(
-        MediaStore.Images.Media._ID,
-        MediaStore.Images.Media.RELATIVE_PATH,
-        MediaStore.Images.Media.DATE_ADDED,
-        MediaStore.Images.Media.DISPLAY_NAME,
+fun listFolder(context: Context, tree: Uri, docId: String): List<FolderEntry>? = runCatching {
+    val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, docId)
+    val columns = arrayOf(
+        Document.COLUMN_DOCUMENT_ID,
+        Document.COLUMN_DISPLAY_NAME,
+        Document.COLUMN_MIME_TYPE,
+        Document.COLUMN_LAST_MODIFIED,
     )
-    context.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, null, null, null)
-        ?.use { cursor ->
-            buildList {
-                while (cursor.moveToNext()) {
-                    add(MediaImage(cursor.getLong(0), cursor.getString(1).orEmpty(), cursor.getLong(2), cursor.getString(3).orEmpty()))
-                }
+    val cursor = checkNotNull(context.contentResolver.query(children, columns, null, null, null)) { "no listing" }
+    cursor.use { c ->
+        buildList {
+            while (c.moveToNext()) {
+                val id = c.getString(0) ?: continue
+                val name = c.getString(1) ?: continue
+                if (name.startsWith(".")) continue
+                val mime = c.getString(2)
+                val folder = mime == Document.MIME_TYPE_DIR
+                if (!folder && !isImageType(mime)) continue
+                add(FolderEntry(id, name, folder, if (c.isNull(3)) 0 else c.getLong(3)))
             }
-        }.orEmpty()
-}.getOrDefault(emptyList())
-
-/** The permissions the app's picker asks for: to read images, and on Android 14 up to be given only some. */
-fun mediaPermissions(): Array<String> = when {
-    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
-        arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
-    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
-    else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-}
-
-/** How much of the media library the app may read. */
-enum class MediaAccess { NONE, SOME, ALL }
-
-fun mediaAccess(context: Context): MediaAccess {
-    fun granted(permission: String) =
-        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
-    return when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && granted(Manifest.permission.READ_MEDIA_IMAGES) ->
-            MediaAccess.ALL
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && granted(Manifest.permission.READ_EXTERNAL_STORAGE) ->
-            MediaAccess.ALL
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
-            granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) -> MediaAccess.SOME
-        else -> MediaAccess.NONE
+        }
     }
+}.getOrNull()
+
+/**
+ * The image at [uri] small, about [px] pixels a side, to be shown in the
+ * picker: the provider's own thumbnail, else the file decoded small. Null
+ * when neither can be had.
+ */
+fun pickerThumbnail(context: Context, uri: Uri, px: Int): Bitmap? {
+    val resolver = context.contentResolver
+    runCatching { resolver.loadThumbnail(uri, Size(px, px), null) }.getOrNull()?.let { return it }
+    return runCatching {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val long = maxOf(bounds.outWidth, bounds.outHeight)
+        if (long <= 0) return null
+        val options = BitmapFactory.Options().apply { inSampleSize = sampleSize(long, px) }
+        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+    }.getOrNull()
 }

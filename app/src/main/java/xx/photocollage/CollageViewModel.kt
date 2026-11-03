@@ -2,6 +2,7 @@ package xx.photocollage
 
 import android.app.Application
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.SystemClock
 import androidx.annotation.StringRes
@@ -58,6 +59,9 @@ data class EditorState(
     /** Photos shared from another app while the collage holds work: they wait for the user to say whether to start anew. */
     val pendingShare: List<Uri>? = null,
 )
+
+/** The drafts of an archive to choose from to import, and which of them are here already, by id. */
+data class ArchiveChoice(val drafts: List<ArchivedDraft>, val here: Set<String>)
 
 /** A line for the user, from a string resource and its arguments. */
 data class Notice(@param:StringRes val text: Int, val args: List<Any> = emptyList())
@@ -126,7 +130,13 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         )
         if (_state.value.draftId != named) keepSession()
         loadPreviews(history.current)
-        viewModelScope.launch { withContext(Dispatchers.IO) { photoLock.withLock { cleanUpOnce() } } }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                photoLock.withLock { cleanUpOnce() }
+                // An archive copied in to import from by an editor gone since.
+                archiveCacheDir(context).deleteRecursively()
+            }
+        }
     }
 
     /**
@@ -684,6 +694,151 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
         runCatching { draftStore.read(id)?.let { renderPreview(context, it, longSide) } }.getOrNull()
     }
 
+    // ---------- Drafts archive ----------
+
+    /** Every draft, with its photos, into an archive in the app's folder; nothing while there is none. */
+    fun exportDrafts() {
+        val folder = AppSettings.folder.value ?: return
+        if (_state.value.busy) return
+        startJob()
+        viewModelScope.launch {
+            try {
+                val saved = withContext(Dispatchers.IO) {
+                    val drafts = draftStore.list()
+                    val photos = photoDir(context)
+                    writeToFolder(context, folder, draftArchiveName(), ARCHIVE_MIME) { out ->
+                        val count = writeDraftArchive(out, drafts, draftStore::read, { File(photos, it) }) { collage ->
+                            runCatching { previewJpeg(context, collage, DRAFT_TILE_LONG) }.getOrNull()
+                        }
+                        // An archive of no draft is no archive: made, it would be a file to import nothing from.
+                        check(count > 0) { "no draft could be read" }
+                    }
+                }
+                say(
+                    when (saved) {
+                        is SaveResult.Saved -> Notice(R.string.drafts_exported, listOf("${treeLabel(folder)}/${saved.name}"))
+                        SaveResult.FolderUnavailable -> Notice(R.string.folder_unavailable, listOf(treeLabel(folder)))
+                        SaveResult.Failed -> Notice(R.string.drafts_export_failed)
+                    },
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                say(Notice(R.string.drafts_export_failed))
+            } finally {
+                endJob()
+            }
+        }
+    }
+
+    /** The drafts' archives in [folder], the newest first; null, and said, when the folder cannot be read. */
+    suspend fun archivesIn(folder: Uri): List<ArchiveFile>? {
+        val found = withContext(Dispatchers.IO) { listArchives(context, folder) }
+        if (found == null) say(Notice(R.string.folder_unavailable, listOf(treeLabel(folder))))
+        return found
+    }
+
+    /** The archive whose drafts are being chosen from; touched on the main thread only. */
+    private var archive: DraftArchive? = null
+
+    /** Whether drafts are being imported from [archive], which must stay open till they are. */
+    private var importRunning = false
+
+    private val _importing = MutableStateFlow<ArchiveChoice?>(null)
+
+    /** The drafts of the archive picked to import from, while they are chosen from; null otherwise. */
+    val importing: StateFlow<ArchiveChoice?> = _importing.asStateFlow()
+
+    /** The archive the system's picker gave as [uri], copied in and opened for its drafts to be chosen from. */
+    fun openArchive(uri: Uri) {
+        if (_state.value.busy) return
+        closeArchive()
+        startJob()
+        viewModelScope.launch {
+            try {
+                val opened = withContext(Dispatchers.IO) {
+                    val dir = archiveCacheDir(context)
+                    dir.deleteRecursively()
+                    dir.mkdirs()
+                    val file = File(dir, "${newDraftId()}.zip")
+                    val input = checkNotNull(context.contentResolver.openInputStream(uri)) { "no stream" }
+                    input.use { src -> file.outputStream().use { src.copyTo(it) } }
+                    val opened = DraftArchive.open(file)
+                    if (opened == null) file.delete()
+                    opened?.let { a -> a to ArchiveChoice(a.drafts, a.drafts.map { it.id }.filterTo(HashSet(), draftStore::has)) }
+                }
+                if (opened == null) {
+                    say(Notice(R.string.archive_unreadable))
+                } else {
+                    archive = opened.first
+                    _importing.value = opened.second
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                say(Notice(R.string.archive_unreadable))
+            } finally {
+                endJob()
+            }
+        }
+    }
+
+    /** Draft [id] of the archive drawn as the archive keeps it; null when it has no picture or it cannot be read. */
+    suspend fun archivePreview(id: String): Bitmap? {
+        val archive = archive ?: return null
+        return withContext(Dispatchers.IO) {
+            // The archive may be closed under this: then there is no picture, not a crash.
+            runCatching { archive.preview(id)?.let { BitmapFactory.decodeByteArray(it, 0, it.size) } }.getOrNull()
+        }
+    }
+
+    /** Drafts [ids] of the archive in among the drafts here, said how many; the archive is then closed. */
+    fun importChosen(ids: Set<String>) {
+        val archive = archive ?: return
+        if (_state.value.busy || ids.isEmpty()) return
+        startJob()
+        importRunning = true
+        viewModelScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    photoLock.withLock {
+                        cleanUpOnce()
+                        importDrafts(archive, ids, draftStore, photoDir(context))
+                    }
+                }
+                if (result.done > 0) say(Notice(R.string.drafts_imported, listOf(result.done)))
+                if (result.failed > 0) say(Notice(R.string.drafts_import_failed, listOf(result.failed)))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                say(Notice(R.string.drafts_import_failed, listOf(ids.size)))
+            } finally {
+                importRunning = false
+                endJob()
+            }
+            refreshDrafts()
+            closeArchive()
+        }
+    }
+
+    /** The archive let go of, and its copy deleted; ignored while it is being imported from. */
+    fun closeArchive() {
+        if (importRunning) return
+        val closing = archive ?: return
+        archive = null
+        _importing.value = null
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { closing.close() }
+            // Its own file only: an archive opened after it may be copied in beside it by now.
+            closing.file.delete()
+        }
+    }
+
+    override fun onCleared() {
+        archive?.let { runCatching { it.close() } }
+        archive = null
+    }
+
     private suspend fun refreshDrafts() {
         val drafts = withContext(Dispatchers.IO) { draftStore.list() }
         _state.value = _state.value.copy(drafts = drafts)
@@ -691,13 +846,17 @@ class CollageViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- Out ----------
 
-    /** The collage into the folder Settings names, under [name] as typed; see [jpegFileName]. */
-    fun saveImage(name: String) = rendering { bitmap ->
-        val folder = AppSettings.saveFolder.value
+    /** The collage into the app's folder, under [name] as typed; see [jpegFileName]. Nothing while there is no folder. */
+    fun saveImage(name: String) {
+        val folder = AppSettings.folder.value ?: return
+        rendering { bitmap -> saveInto(folder, bitmap, name) }
+    }
+
+    private fun saveInto(folder: Uri, bitmap: Bitmap, name: String) {
         when (val saved = saveImage(context, bitmap, folder, jpegFileName(name))) {
-            is SaveResult.Saved -> say(Notice(R.string.image_saved, listOf("${folderLabel(folder)}/${saved.name}")))
+            is SaveResult.Saved -> say(Notice(R.string.image_saved, listOf("${treeLabel(folder)}/${saved.name}")))
             // Picked again in Settings, it takes files again: said apart from a failure the user cannot mend.
-            SaveResult.FolderUnavailable -> say(Notice(R.string.save_folder_unavailable, listOf(folderLabel(folder))))
+            SaveResult.FolderUnavailable -> say(Notice(R.string.folder_unavailable, listOf(treeLabel(folder))))
             SaveResult.Failed -> say(Notice(R.string.image_save_failed))
         }
     }
